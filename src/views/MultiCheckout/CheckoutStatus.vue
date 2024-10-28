@@ -120,7 +120,11 @@ export default {
 
     const tenantObj = await ApiTenantService.getTenant(this.tenant);
 
-    this.websiteLink = tenantObj?.data?.website;
+    if (this.$route.query.redirect_uri) {
+      this.websiteLink = this.$route.query.redirect_uri;
+    } else {
+      this.websiteLink = tenantObj?.data?.website;
+    }
 
     if (this.bookingId && this.tenant) {
       this.fetchBookingStatus();

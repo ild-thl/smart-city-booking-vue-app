@@ -373,7 +373,13 @@ export default {
           } else {
             this.$router.push({
               path: "/checkout/status",
-              query: { id: booking.id, tenant: booking.tenant },
+              query: {
+                id: booking.id,
+                tenant: booking.tenant,
+                ...(this.$route.query.redirect_uri && {
+                  redirect_uri: this.$route.query.redirect_uri,
+                }),
+              },
             });
           }
         }
