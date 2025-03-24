@@ -68,8 +68,7 @@
                           label="Nachname"
                         ></v-text-field>
                       </v-col>
-                      <v-spacer></v-spacer>
-                      <v-col class="text-right">
+                      <v-col class="col-auto text-right">
                         <v-btn
                           x-large
                           color="primary"
@@ -93,24 +92,6 @@
                       <v-col class="text-right"></v-col>
                     </v-row>
                   </v-expansion-panel-header>
-                  <v-divider></v-divider>
-                </v-expansion-panel>
-                <v-expansion-panel disabled>
-                  <v-expansion-panel-header>
-                    <v-row no-gutters align="center" justify="space-between">
-                      <v-col class="darkgrey--text">Rechte</v-col>
-                      <v-chip
-                        v-for="(permission, index) in permissions"
-                        class="ma-2"
-                        color="secondary"
-                        text-color="black"
-                        :key="index"
-                      >
-                        {{ permission }}
-                      </v-chip>
-                      <v-col class="text-md-right"></v-col>
-                    </v-row>
-                  </v-expansion-panel-header>
                 </v-expansion-panel>
               </v-expansion-panels>
             </v-row>
@@ -132,9 +113,53 @@
               <v-expansion-panels
                 flat
                 class="elevation-0"
-                v-model="generalPanel"
+                v-model="contactPanel"
                 multiple
               >
+                <v-expansion-panel>
+                  <v-expansion-panel-header>
+                    <v-row align="center" justify="space-between">
+                      <v-col class="darkgrey--text col-5">Firma ändern</v-col>
+                      <v-col class="darkgrey--text col-4">{{
+                        api.user.company
+                      }}</v-col>
+                      <v-col class="text-right"></v-col>
+                    </v-row>
+                    <template v-slot:actions>
+                      <v-tooltip bottom>
+                        <template v-slot:activator="{ on }">
+                          <v-icon v-on="on" color="darkgrey"
+                            >mdi-chevron-right</v-icon
+                          >
+                        </template>
+                        <span>Firma ändern</span>
+                      </v-tooltip>
+                    </template>
+                  </v-expansion-panel-header>
+                  <v-expansion-panel-content>
+                    <v-row justify="center" align="center">
+                      <v-col>
+                        <v-text-field
+                          outlined
+                          hide-details
+                          v-model="company"
+                          label="Firma"
+                        ></v-text-field>
+                      </v-col>
+                      <v-col class="col-auto text-right">
+                        <v-btn
+                          x-large
+                          color="primary"
+                          @click="updateUser"
+                          :loading="isLoading"
+                        >
+                          Änderungen speichern
+                        </v-btn>
+                      </v-col>
+                    </v-row>
+                  </v-expansion-panel-content>
+                  <v-divider></v-divider>
+                </v-expansion-panel>
                 <v-expansion-panel>
                   <v-expansion-panel-header>
                     <v-row align="center" justify="space-between">
@@ -167,8 +192,7 @@
                           label="Telefonnummer"
                         ></v-text-field>
                       </v-col>
-                      <v-spacer></v-spacer>
-                      <v-col class="text-right">
+                      <v-col class="col-auto text-right">
                         <v-btn
                           x-large
                           color="primary"
@@ -214,8 +238,7 @@
                           label="Straße und Hausnummer"
                         ></v-text-field>
                       </v-col>
-                      <v-spacer></v-spacer>
-                      <v-col class="text-right">
+                      <v-col class="col-auto text-right">
                         <v-btn
                           x-large
                           color="primary"
@@ -261,8 +284,7 @@
                           label="Postleitzahl"
                         ></v-text-field>
                       </v-col>
-                      <v-spacer></v-spacer>
-                      <v-col class="text-right">
+                      <v-col class="col-auto text-right">
                         <v-btn
                           x-large
                           color="primary"
@@ -306,8 +328,7 @@
                           label="Wohnort"
                         ></v-text-field>
                       </v-col>
-                      <v-spacer></v-spacer>
-                      <v-col class="text-right">
+                      <v-col class="col-auto text-right">
                         <v-btn
                           x-large
                           color="primary"
@@ -334,7 +355,7 @@
     <v-row no-gutters align="center" justify="center">
       <v-col class="mx-xs-auto" cols="12" sm="6">
         <p class="text-subtitle-1">
-          Einstellungen zum schützen deines Accounts
+          Einstellungen zum Schützen Ihres Accounts
         </p>
       </v-col>
     </v-row>
@@ -359,9 +380,7 @@
                 <v-expansion-panel disabled>
                   <v-expansion-panel-header>
                     <v-row no-gutters align="center" justify="space-between">
-                      <v-col class="darkgrey--text col-5"
-                        >E-Mail-Adresse ändern</v-col
-                      >
+                      <v-col class="darkgrey--text col-5">E-Mail-Adresse</v-col>
                       <v-col class="darkgrey--text col-4">{{
                         api.user.id
                       }}</v-col>
@@ -404,11 +423,9 @@
                     <template v-slot:actions>
                       <v-tooltip bottom>
                         <template v-slot:activator="{ on }">
-                          <v-col class="text-right">
-                            <v-icon v-on="on" color="darkgrey"
-                              >mdi-chevron-right</v-icon
-                            >
-                          </v-col>
+                          <v-icon v-on="on" color="darkgrey"
+                            >mdi-chevron-right</v-icon
+                          >
                         </template>
                         <span>Passwort ändern</span>
                       </v-tooltip>
@@ -463,129 +480,6 @@
             </v-row>
           </v-card-text>
         </v-card>
-      </v-col> </v-row
-    ><v-row no-gutters class="mt-16" align="center" justify="center">
-      <v-col class="mx-xs-auto" cols="12" sm="6">
-        <p class="text-h4">Benachrichtigungen</p>
-      </v-col>
-    </v-row>
-    <v-row no-gutters align="center" justify="center">
-      <v-col class="mx-xs-auto" cols="12" sm="6">
-        <p class="text-subtitle-1">
-          Stellen Sie ein, zu welchen Themen Sie Benachrichtigungen erhalten
-          wollen.
-        </p>
-      </v-col>
-    </v-row>
-    <v-row no-gutters align="center" justify="center">
-      <v-col class="mx-xs-auto" cols="12" sm="6">
-        <v-card outlined class="mx-auto pa-2">
-          <v-card-title class="text-h4 darkgrey--text ml-3">
-            E-Mail Benachrichtigungen
-          </v-card-title>
-          <v-card-subtitle class="mt-1 ml-3">
-            Diese Benachrichtigungen dienen dazu, um Sie auf dem aktuellen Stand
-            zu halten.
-          </v-card-subtitle>
-          <v-card-text>
-            <v-row>
-              <v-expansion-panels flat class="elevation-0">
-                <v-expansion-panel disabled>
-                  <v-expansion-panel-header>
-                    <v-row no-gutters align="center" justify="space-between">
-                      <v-col class="darkgrey--text col-5"
-                        >Updates zu deinen Veranstaltungen</v-col
-                      >
-                      <v-col class="col-4">Bald verfügbar...</v-col>
-                      <v-col class="text-right"
-                        ><v-icon color="darkgrey">mdi-lock</v-icon></v-col
-                      >
-                    </v-row>
-                    <template v-slot:actions>
-                      <v-tooltip bottom>
-                        <template v-slot:activator="{ on }">
-                          <v-icon v-on="on" color="darkgrey"
-                            >mdi-chevron-right</v-icon
-                          >
-                        </template>
-                        <span
-                          >Updates zu deinen Veranstaltungen einstellen</span
-                        >
-                      </v-tooltip>
-                    </template>
-                  </v-expansion-panel-header>
-
-                  <v-expansion-panel-content>
-                    <!-- TODO: update text, tbd -->
-                  </v-expansion-panel-content>
-                  <v-divider></v-divider>
-                </v-expansion-panel>
-                <v-expansion-panel disabled>
-                  <v-expansion-panel-header>
-                    <v-row no-gutters align="center" justify="space-between">
-                      <v-col class="darkgrey--text col-5"
-                        >Reservierungsbestätigungen</v-col
-                      >
-                      <v-col class="darkgrey--text col-4"
-                        ><v-icon color="darkgrey">mdi-information</v-icon
-                        >Aktiviert</v-col
-                      >
-                      <v-col class="text-right"
-                        ><v-icon color="darkgrey">mdi-lock</v-icon></v-col
-                      >
-                    </v-row>
-                    <template v-slot:actions>
-                      <v-tooltip bottom>
-                        <template v-slot:activator="{ on }">
-                          <v-icon v-on="on" color="darkgrey"
-                            >mdi-chevron-right</v-icon
-                          >
-                        </template>
-                        <span>Reservierungsbestätigungen einstellen</span>
-                      </v-tooltip>
-                    </template>
-                  </v-expansion-panel-header>
-
-                  <v-expansion-panel-content>
-                    <!-- TODO: update text, tbd -->
-                  </v-expansion-panel-content>
-                </v-expansion-panel>
-              </v-expansion-panels>
-            </v-row>
-          </v-card-text>
-        </v-card>
-      </v-col>
-    </v-row>
-    <v-row no-gutters class="mt-8 mb-16" align="center" justify="center">
-      <v-col class="mx-xs-auto" cols="12" sm="6">
-        <v-card outlined class="mx-auto pa-2">
-          <v-card-title class="text-h4 darkgrey--text ml-3">
-            Wichtige Benachrichtigungen
-          </v-card-title>
-          <v-card-subtitle class="mt-1 ml-3">
-            Diese Benachrichtigungen können nicht deaktiviert werden.
-          </v-card-subtitle>
-          <v-card-text>
-            <v-row>
-              <v-expansion-panels flat class="elevation-0">
-                <v-expansion-panel disabled>
-                  <v-expansion-panel-header>
-                    <v-row no-gutters align="center" justify="space-between">
-                      <v-col class="darkgrey--text col-5"
-                        >Passwort vergessen</v-col
-                      >
-                      <v-col class="darkgrey--text col-4"
-                        ><v-icon color="darkgrey">mdi-information</v-icon
-                        >Aktiviert</v-col
-                      >
-                      <v-col class="text-right"></v-col>
-                    </v-row>
-                  </v-expansion-panel-header>
-                </v-expansion-panel>
-              </v-expansion-panels>
-            </v-row>
-          </v-card-text>
-        </v-card>
       </v-col>
     </v-row>
   </AdminLayout>
@@ -605,6 +499,7 @@ export default {
       valid: true,
       isLoading: false,
       generalPanel: [],
+      contactPanel: [],
       securePanel: [],
       password: "",
       passwordRepeat: "",
@@ -616,18 +511,10 @@ export default {
       tempFirstName: "",
       tempLastName: "",
       tempPhone: "",
+      tempCompany: "",
       tempAddress: "",
       tempZip: "",
       tempCity: "",
-      headers: [
-        { text: "Vorname", value: "firstName" },
-        { text: "Nachname", value: "lastName" },
-        { text: "E-Mail Adresse", value: "id" },
-        { text: "Mandant", value: "tenant" },
-        { text: "Verifiziert", value: "isVerified" },
-        { text: "Rollen", value: "permissions" },
-        { text: "Beigetreten", value: "created" },
-      ],
     };
   },
   components: {
@@ -661,6 +548,14 @@ export default {
       },
       set(value) {
         this.tempPhone = value;
+      },
+    },
+    company: {
+      get() {
+        return this.api.user.company;
+      },
+      set(value) {
+        this.tempCompany = value;
       },
     },
     address: {
@@ -725,6 +620,7 @@ export default {
       this.api.user.firstName = this.tempFirstName;
       this.api.user.lastName = this.tempLastName;
       this.api.user.phone = this.tempPhone;
+      this.api.user.company = this.tempCompany;
       this.api.user.address = this.tempAddress;
       this.api.user.zipCode = this.tempZip;
       this.api.user.city = this.tempCity;
@@ -798,6 +694,7 @@ export default {
     this.tempAddress = this.user.address;
     this.tempZip = this.user.zipCode;
     this.tempCity = this.user.city;
+    this.tempCompany = this.user.company;
   },
   created() {
     this.api.user = this.user;

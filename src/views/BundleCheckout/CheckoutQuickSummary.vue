@@ -141,13 +141,29 @@
             - {{ formatCurrency(totalPriceOff) }}
           </v-col>
         </v-row>
+        <v-row no-gutters v-if="hasValueAddedTax">
+          <v-col class="font-weight-bold"> Gesamt (netto): </v-col>
+          <v-col class="text-right col-md-3 font-weight-bold">
+            <span v-if="allItemsValid">{{ formatCurrency(totalPrice) }}</span>
+          </v-col>
+        </v-row>
+        <v-row no-gutters v-if="hasValueAddedTax">
+          <v-col> zzgl. MwSt: </v-col>
+          <v-col class="text-right col-md-3">
+            <span v-if="allItemsValid">{{
+              formatCurrency(totalGrossPrice - totalPrice)
+            }}</span>
+          </v-col>
+        </v-row>
         <v-row>
           <v-col class="font-weight-bold"> Gesamt: </v-col>
           <v-col
             class="text-right col-md-3 font-weight-bold"
             style="font-size: large"
           >
-            <span v-if="allItemsValid">{{ formatCurrency(totalPrice) }}</span>
+            <span v-if="allItemsValid">{{
+              formatCurrency(totalGrossPrice)
+            }}</span>
           </v-col>
         </v-row>
       </v-card-text>
@@ -279,6 +295,9 @@ export default {
     me: {
       type: Object,
     },
+    selectedPaymentApp: {
+      type: String,
+    },
   },
 
   data() {
@@ -331,7 +350,7 @@ export default {
         }
       );
 
-      const payload = {
+      return {
         timeBegin: this.timeBegin,
         timeEnd: this.timeEnd,
         bookableItems: bookableItems,
@@ -344,50 +363,103 @@ export default {
         mail: this.contactDetails.mail,
         phone: this.contactDetails.phone,
         comment: this.contactDetails.comment,
+        paymentProvider: this.selectedPaymentApp,
+        attachmentStatus: [this.leadItem, ...this.subsequentItems].flatMap(
+          (item) =>
+            item.bookable.attachments.map((attachment) => {
+              return {
+                id: attachment.id,
+                bookableId: item.bookableId,
+                accepted: attachment.accepted,
+              };
+            })
+        ),
       };
-
-      return payload;
     },
 
     async checkout() {
       this.isSubmitting = true;
 
       try {
-        const checkoutResponse = await ApiCheckoutService.checkout(
-          this.tenant,
-          this.compileBooking(),
-          false
-        );
-
-        if (checkoutResponse.status === 200) {
-          const booking = checkoutResponse.data;
-          if (this.totalPrice > 0 && this.isAutoCommit) {
-            const paymentResponse = await ApiPaymentService.payments(
-              booking.id,
-              this.tenant
-            );
-            const paymentUrl = paymentResponse.data?.paymentUrl;
-            if (paymentUrl) {
-              window.location.href = paymentUrl;
-            }
-          } else {
-            this.$router.push({
-              path: "/checkout/status",
-              query: {
-                id: booking.id,
-                tenant: booking.tenant,
-                ...(this.$route.query.redirect_uri && {
-                  redirect_uri: this.$route.query.redirect_uri,
-                }),
-              },
-            });
-          }
+        const checkoutResponse = await this.performCheckout();
+        if (
+          checkoutResponse.data.isCommitted === true &&
+          checkoutResponse.data.isPayed === false
+        ) {
+          const paymentResponse = await this.processPayment(
+            checkoutResponse.data
+          );
+          await this.handlePaymentOutcome(paymentResponse);
+        } else {
+          await this.routeToStatus(checkoutResponse.data);
         }
       } catch (error) {
-        console.log(error);
+        console.error("Checkout process failed:", error.message);
       } finally {
         this.isSubmitting = false;
       }
+    },
+
+    async performCheckout() {
+      const response = await ApiCheckoutService.checkout(
+        this.tenant,
+        this.compileBooking(),
+        false
+      );
+      if (response.status !== 200) throw new Error("Checkout service failed");
+      return response;
+    },
+
+    async processPayment(booking) {
+      const response = await ApiPaymentService.payments(
+        booking.id,
+        booking.tenantId
+      );
+      if (response.status !== 200) throw new Error("Payment processing failed");
+      return response;
+    },
+
+    async handlePaymentOutcome(paymentResponse) {
+      const finalBooking = paymentResponse.data.booking;
+
+      if (finalBooking.totalPrice <= 0 || !finalBooking.isCommitted) {
+        await this.routeToStatus(finalBooking);
+        return;
+      }
+
+      switch (finalBooking.paymentProvider) {
+      case "giroCockpit": {
+        const paymentUrl = paymentResponse.data?.paymentData;
+        if (paymentUrl) {
+          window.location.href = paymentUrl;
+        }
+        break;
+      }
+      case "pmPayment": {
+        const paymentUrl = paymentResponse.data?.paymentData;
+        if (paymentUrl) {
+          window.location.href = paymentUrl;
+        }
+        break;
+      }
+      case "invoice":
+        await this.routeToStatus(finalBooking, finalBooking.paymentProvider);
+        break;
+      default:
+        await this.routeToStatus(finalBooking);
+        break;
+      }
+    },
+
+    async routeToStatus(booking, paymentProvider = null) {
+      await this.$router.push({
+        path: "/checkout/status",
+        query: {
+          id: booking.id,
+          tenant: booking.tenantId,
+          paymentProvider: paymentProvider,
+        },
+      });
     },
 
     redeemCoupon() {
@@ -410,6 +482,15 @@ export default {
       return price;
     },
 
+    totalGrossPrice() {
+      let price = 0;
+      for (const item of [this.leadItem, ...this.subsequentItems]) {
+        price += item.userGrossPriceEur;
+      }
+
+      return price;
+    },
+
     totalPriceOff() {
       let off = 0;
       for (const item of [this.leadItem, ...this.subsequentItems]) {
@@ -417,8 +498,30 @@ export default {
           off += item.regularPriceEur - item.userPriceEur;
         }
       }
+    },
+
+    totalGrossPriceOff() {
+      let off = 0;
+      for (const item of [this.leadItem, ...this.subsequentItems]) {
+        if (item.regularGrossPriceEur > item.userGrossPriceEur) {
+          off += item.regularGrossPriceEur - item.userGrossPriceEur;
+        }
+      }
 
       return off;
+    },
+
+    hasValueAddedTax() {
+      for (const item of [this.leadItem, ...this.subsequentItems]) {
+        if (
+          item.bookable.priceValueAddedTax &&
+          item.bookable.priceValueAddedTax > 0
+        ) {
+          return true;
+        }
+      }
+
+      return false;
     },
 
     allItemsValid() {

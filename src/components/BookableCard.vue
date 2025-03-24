@@ -116,7 +116,9 @@
             </v-list-item-icon>
             <v-list-item-title>Zur Buchung</v-list-item-title>
           </v-list-item>
-          <v-divider v-if="BookablePermissionService.allowDelete()"></v-divider>
+          <v-divider
+            v-if="BookablePermissionService.allowDelete(item)"
+          ></v-divider>
           <v-list-item
             link
             class="red--text"
@@ -163,23 +165,30 @@ export default {
       this.$emit("duplicate");
     },
     gotoCheckout() {
-      const routeData = this.$router.resolve({name: "checkout", query: { id: this.item.id, tenant: this.tenant.id, amount: 1,}});
+      const routeData = this.$router.resolve({
+        name: "checkout",
+        query: { id: this.item.id, tenant: this.tenantId, amount: 1 },
+      });
       window.open(routeData.href, "_blank");
     },
     shortenText(text) {
       return text.substring(0, 140) + (text.length > 140 ? " ..." : "");
     },
     async setAllowDuplicate() {
-      const bookableCountCheck = await ApiBookablesService.publicBookableCountCheck();
+      const bookableCountCheck =
+        await ApiBookablesService.publicBookableCountCheck();
       this.isDuplicateAllowed = bookableCountCheck || !this.item.isPublic;
     },
   },
   computed: {
     ...mapGetters({
-      tenant: "tenants/tenant",
+      tenantId: "tenants/currentTenantId",
     }),
     duplicateDisabled() {
-      return !this.BookablePermissionService.allowCreate() || !this.isDuplicateAllowed;
+      return (
+        !this.BookablePermissionService.allowCreate() ||
+        !this.isDuplicateAllowed
+      );
     },
     BookablePermissionService() {
       return BookablePermissionService;

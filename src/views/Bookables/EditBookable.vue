@@ -1,11 +1,11 @@
 <template>
-  <v-container v-if="!isLoading">
+  <v-container v-if="!isLoading" style="max-width: 1200px">
     <div class="d-flex">
       <v-btn icon class="ms-n14 me-5 accent" @click="goBack">
         <v-icon>mdi-close</v-icon>
       </v-btn>
       <h2 class="mb-4">
-        Buchungsobjekt {{ this.mode == "create" ? "erstellen" : "bearbeiten" }}
+        Buchungsobjekt {{ this.mode === "create" ? "erstellen" : "bearbeiten" }}
       </h2>
     </div>
     <v-row>
@@ -29,7 +29,7 @@
           label="Mandant"
           hide-details
           disabled
-          v-model="tenant"
+          v-model="tenantId"
         ></v-text-field>
       </v-col>
     </v-row>
@@ -67,7 +67,7 @@
         <ChooseFile
           v-model="imgUrl"
           :allow-protected="false"
-          :tenant="tenant"
+          :tenant-id="tenantId"
           filled
           images-only
           label="Cover-Bild"
@@ -157,10 +157,20 @@
         <v-text-field
           background-color="accent"
           filled
-          label="Preis"
+          label="Preis (netto)"
           hide-details
           v-model="priceEur"
           suffix="Euro"
+        ></v-text-field>
+      </v-col>
+      <v-col class="col-2">
+        <v-text-field
+          background-color="accent"
+          filled
+          label="MwSt."
+          hide-details
+          v-model="priceValueAddedTax"
+          suffix="%"
         ></v-text-field>
       </v-col>
       <v-col>
@@ -230,7 +240,7 @@
       </v-col>
     </v-row>
     <BookableLockingAttributes
-      :tenant="tenant"
+      :tenant-id="tenantId"
       :amount="amount"
     ></BookableLockingAttributes>
 
@@ -441,47 +451,93 @@
     </v-row>
 
     <h3 class="mt-10 mb-4">Anhänge</h3>
-    <v-row v-for="attachment in attachments" :key="attachment.id">
-      <v-col>
-        <v-text-field
-          dense
-          background-color="accent"
-          filled
-          label="Titel"
-          hide-details
-          v-model="attachment.title"
-        ></v-text-field>
-      </v-col>
-      <v-col>
-        <v-select
-          dense
-          background-color="accent"
-          filled
-          label="Typ"
-          hide-details
-          v-model="attachment.type"
-          :items="attachmentTypes"
-          item-text="name"
-          item-value="id"
-        ></v-select>
-      </v-col>
-      <v-col>
-        <ChooseFile
-          v-model="attachment.url"
-          :allow-protected="false"
-          :tenant="tenant"
-          filled
-          label="Datei"
-          background-color="accent"
-          forced-subdirectory="agreements"
-        />
-      </v-col>
-      <v-col class="col-auto">
-        <v-btn icon small @click="removeAttachment(attachment.id)">
-          <v-icon>mdi-delete</v-icon>
-        </v-btn>
-      </v-col>
-    </v-row>
+    <div v-for="(attachment, index) in attachments" :key="attachment.id">
+      <v-card flat outlined rounded>
+        <v-card-text>
+          <v-row class="">
+            <v-col class="col">
+              <v-row>
+                <v-col>
+                  <v-text-field
+                    dense
+                    background-color="accent"
+                    filled
+                    label="Titel"
+                    hide-details
+                    v-model="attachment.title"
+                  ></v-text-field>
+                </v-col>
+                <v-col>
+                  <v-select
+                    dense
+                    background-color="accent"
+                    filled
+                    label="Typ"
+                    hide-details
+                    v-model="attachment.type"
+                    :items="attachmentTypes"
+                    item-text="name"
+                    item-value="id"
+                  ></v-select>
+                </v-col>
+                <v-col>
+                  <ChooseFile
+                    v-model="attachment.url"
+                    :allow-protected="false"
+                    :tenant-id="tenantId"
+                    filled
+                    label="Datei"
+                    background-color="accent"
+                    forced-subdirectory="agreements"
+                  />
+                </v-col>
+              </v-row>
+              <v-row>
+                <v-col>
+                  <v-text-field
+                    dense
+                    background-color="accent"
+                    filled
+                    label="Beschreibung"
+                    placeholder="Ich habe die Nutzungsbedingungen gelesen und akzeptiere sie."
+                    hide-details
+                    v-model="attachment.caption"
+                  ></v-text-field>
+                </v-col>
+              </v-row>
+              <v-row>
+                <v-col>
+                  <v-switch
+                    dense
+                    label="Im Buchungsprozess anzeigen"
+                    hide-details
+                    v-model="attachment.show"
+                  ></v-switch>
+                </v-col>
+                <v-col>
+                  <v-switch
+                    dense
+                    label="Muss vom Nutzer akzeptiert werden"
+                    hide-details
+                    v-model="attachment.required"
+                  ></v-switch>
+                </v-col>
+              </v-row>
+            </v-col>
+            <v-col class="col-auto">
+              <v-btn icon small @click="removeAttachment(attachment.id)">
+                <v-icon>mdi-delete</v-icon>
+              </v-btn>
+            </v-col>
+          </v-row>
+        </v-card-text>
+      </v-card>
+      <v-divider
+        class="my-5"
+        v-if="index < attachments.length - 1"
+        :key="`divider-${index}`"
+      />
+    </div>
     <v-row>
       <v-col class="col-auto">
         <v-btn outlined class="mt-2" @click="addNewAttachment()"
@@ -494,10 +550,25 @@
       <v-col class="col-auto">
         <v-switch
           dense
+          label="Firma erforderlich"
+          hide-details
+          v-model="companyRequired"
+        ></v-switch>
+      </v-col>
+      <v-col class="col-auto">
+        <v-switch
+          dense
           label="Kommentarfeld erforderlich"
           hide-details
           v-model="commentRequired"
-          ></v-switch>
+        ></v-switch>
+      </v-col>
+    </v-row>
+
+    <h3 class="mt-10 mb-4">Buchungshinweise</h3>
+    <v-row>
+      <v-col>
+        <Tiptap v-model="bookingNotes" label="Buchungshinweise"></Tiptap>
       </v-col>
     </v-row>
 
@@ -523,7 +594,8 @@
 <script>
 import ApiBookablesService from "@/services/api/ApiBookablesService";
 import { mapActions, mapGetters } from "vuex";
-import uniqueId from "lodash/uniqueId";
+import _ from "lodash";
+import { v4 as uuidv4 } from "uuid";
 import ApiEventService from "@/services/api/ApiEventService";
 import ApiUsersService from "@/services/api/ApiUsersService";
 import BookableTimeDependantAttributes from "@/components/Bookable/BookableTimeDependantAttributes";
@@ -545,7 +617,7 @@ export default {
 
   data() {
     return {
-      allowPublic:true,
+      allowPublic: true,
       bookableType: null,
       bookable: {},
       bookableTypes: [
@@ -640,6 +712,18 @@ export default {
       availableRoles: [],
     };
   },
+  watch: {
+    attachments: {
+      handler: function (val) {
+        val.forEach((attachment) => {
+          if (attachment.required === true) {
+            attachment.show = true;
+          }
+        });
+      },
+      deep: true,
+    },
+  },
   methods: {
     ...mapActions({
       updateValue: "bookables/updateForm",
@@ -656,8 +740,9 @@ export default {
     },
     addNewAttachment() {
       this.addAttachment({
-        id: uniqueId(),
+        id: uuidv4(),
         title: "",
+        caption: "",
         type: "",
         url: "",
       });
@@ -707,8 +792,9 @@ export default {
             id,
             location,
             priceEur,
+            priceValueAddedTax,
             tags,
-            tenant,
+            tenantId,
             title,
             type,
             eventId,
@@ -725,17 +811,19 @@ export default {
             longRangeOptions,
             lockerDetails,
             requiredFields,
+            bookingNotes,
           } = response.data;
 
           this.restoreFromApi({
             id: id,
             parent: parent,
-            tenant: tenant,
+            tenantId: tenantId,
             type: type,
             title: title,
             description: description,
             location: location,
             priceEur: priceEur,
+            priceValueAddedTax: priceValueAddedTax,
             priceCategory: !_.isNil(priceCategory) ? priceCategory : false,
             amount: !_.isNil(amount) ? amount : 0,
             isScheduleRelated: !_.isNil(isScheduleRelated)
@@ -777,6 +865,7 @@ export default {
             longRangeOptions: longRangeOptions,
             lockerDetails: lockerDetails,
             requiredFields: requiredFields,
+            bookingNotes: bookingNotes,
           });
         })
         .finally(() => {
@@ -898,7 +987,7 @@ export default {
       this.permittedUsers.splice(this.permittedUsers.indexOf(item), 1);
     },
     removePermittedRole(item) {
-      this.permittedRoles.splice(this.freeBookingUsers.indexOf(item), 1);
+      this.permittedRoles.splice(this.permittedRoles.indexOf(item), 1);
     },
     removeFreeBookingUser(item) {
       this.freeBookingUsers.splice(this.freeBookingUsers.indexOf(item), 1);
@@ -907,8 +996,9 @@ export default {
       this.freeBookingRoles.splice(this.freeBookingRoles.indexOf(item), 1);
     },
     async allowSetPublic() {
-      const bookableCountCheck = await ApiBookablesService.publicBookableCountCheck();
-      this.allowPublic = bookableCountCheck || this.isPublic
+      const bookableCountCheck =
+        await ApiBookablesService.publicBookableCountCheck();
+      this.allowPublic = bookableCountCheck || this.isPublic;
     },
   },
   computed: {
@@ -916,6 +1006,7 @@ export default {
       isLoading: "loading/isLoading",
       attachments: "bookables/attachments",
       bookableForm: "bookables/form",
+      currentTenantId: "tenants/currentTenantId",
     }),
     id: {
       get() {
@@ -925,16 +1016,16 @@ export default {
         this.updateValue({ field: "id", value: value });
       },
     },
-    tenant: {
+    tenantId: {
       get() {
-        if(this.mode === "create") {
-          return this.$store.state.tenants.data.id;
+        if (this.mode === "create") {
+          return this.currentTenantId;
         } else {
-          return this.$store.state.bookables.form.tenant;
+          return this.$store.state.bookables.form.tenantId;
         }
       },
       set(value) {
-        this.updateValue({ field: "tenant", value: value });
+        this.updateValue({ field: "tenantId", value: value });
       },
     },
     type: {
@@ -986,6 +1077,14 @@ export default {
       },
       set(value) {
         this.updateValue({ field: "priceEur", value: value });
+      },
+    },
+    priceValueAddedTax: {
+      get() {
+        return this.$store.state.bookables.form.priceValueAddedTax;
+      },
+      set(value) {
+        this.updateValue({ field: "priceValueAddedTax", value: value });
       },
     },
     priceCategory: {
@@ -1126,24 +1225,72 @@ export default {
     },
     commentRequired: {
       get() {
-        return this.$store.state.bookables.form.requiredFields?.includes("comment");
+        return this.$store.state.bookables.form.requiredFields?.includes(
+          "comment"
+        );
       },
       set(value) {
         if (value) {
-          if (!this.$store.state.bookables.form.requiredFields?.includes("comment")) {
+          if (
+            !this.$store.state.bookables.form.requiredFields?.includes(
+              "comment"
+            )
+          ) {
             this.updateValue({
               field: "requiredFields",
-              value: [...(this.$store.state.bookables.form.requiredFields || []), "comment"],
+              value: [
+                ...(this.$store.state.bookables.form.requiredFields || []),
+                "comment",
+              ],
             });
           }
         } else {
           this.updateValue({
             field: "requiredFields",
-            value: (this.$store.state.bookables.form.requiredFields || []).filter(
-              (f) => f !== "comment"
-            ),
+            value: (
+              this.$store.state.bookables.form.requiredFields || []
+            ).filter((f) => f !== "comment"),
           });
         }
+      },
+    },
+    companyRequired: {
+      get() {
+        return this.$store.state.bookables.form.requiredFields?.includes(
+          "company"
+        );
+      },
+      set(value) {
+        if (value) {
+          if (
+            !this.$store.state.bookables.form.requiredFields?.includes(
+              "company"
+            )
+          ) {
+            this.updateValue({
+              field: "requiredFields",
+              value: [
+                ...(this.$store.state.bookables.form.requiredFields || []),
+                "company",
+              ],
+            });
+          }
+        } else {
+          this.updateValue({
+            field: "requiredFields",
+            value: (
+              this.$store.state.bookables.form.requiredFields || []
+            ).filter((f) => f !== "company"),
+          });
+        }
+      },
+    },
+    bookingNotes: {
+      get() {
+        return this.$store.state.bookables.form.bookingNotes;
+      },
+      set(value) {
+        this.updateValue({ field: "bookingNotes", value: value });
       },
     },
     mode: function () {

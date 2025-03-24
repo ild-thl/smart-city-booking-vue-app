@@ -2,6 +2,7 @@
   <div>
     <v-autocomplete
       v-if="showUrl === false"
+      :loading="isFetching"
       item-value="link"
       item-text="filename"
       no-data-text="Keine Dateien vorhanden"
@@ -168,6 +169,7 @@ export default {
       accessLevel: "public",
       customDirectory: "",
       isLoading: false,
+      isFetching: false,
       isUploadError: false,
       files: [],
       showUrl: false,
@@ -175,7 +177,7 @@ export default {
     };
   },
   props: {
-    tenant: {
+    tenantId: {
       type: String,
       required: true,
     },
@@ -222,35 +224,41 @@ export default {
   },
   methods: {
     async fetchFiles() {
-      if (!this.tenant) return [];
+      try {
+        this.isFetching = true;
+        if (!this.tenantId) return [];
 
-      const response = await ApiFileService.getFiles(
-        this.tenant,
-        this.allowProtected
-      );
-      this.files = response.data.filter((file) => {
-        const extension = file.filename.toLowerCase().split(".").pop();
-        return this.extensionFilter.includes(extension);
-      });
+        const response = await ApiFileService.getFiles(
+          this.tenantId,
+          this.allowProtected
+        );
+        this.files = response.data.filter((file) => {
+          const extension = file.filename.toLowerCase().split(".").pop();
+          return this.extensionFilter.includes(extension);
+        });
+
+      } finally {
+        this.isFetching = false;
+      }
     },
     link(accessLevel, filename) {
       if (!filename) return undefined;
-      return `${process.env.VUE_APP_SERVER_BASE_URL}/api/${this.tenant}/files/get?name=/${accessLevel}/${filename}`;
+      return `${process.env.VUE_APP_SERVER_BASE_URL}/api/${this.tenantId}/files/get?name=/${accessLevel}/${filename}`;
     },
     async runUpload() {
       this.isLoading = true;
 
       try {
         if (this.uploadFile) {
-          const path =
-            (this.forcedSubdirectory.length > 0
-              ? this.forcedSubdirectory + "/"
-              : "") + this.customDirectory;
+          let path = [this.forcedSubdirectory, this.customDirectory]
+            .filter(Boolean)
+            .join("/");
+
           const formData = new FormData();
           formData.append("file", this.uploadFile);
           formData.append("accessLevel", this.accessLevel);
           formData.append("customDirectory", path);
-          await ApiFileService.createFile(this.tenant, formData);
+          await ApiFileService.createFile(this.tenantId, formData);
           await this.fetchFiles();
           this.$emit(
             "input",
