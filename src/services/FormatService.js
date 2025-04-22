@@ -1,8 +1,3 @@
-import moment from "moment";
-import "moment/locale/de";
-
-moment.locale("de");
-
 function createDateTimeObject(input) {
   let dateTimeObject = input;
 
@@ -24,31 +19,13 @@ function createDateTimeObject(input) {
 
 export default {
   currency(number, currency = "EUR", locale = "de-DE") {
-    return new Intl.NumberFormat(locale, {
-      style: "currency",
-      currency: currency,
-    }).format(number);
+    return new Intl.NumberFormat(locale, { style: "currency", currency: currency }).format(number);
   },
   date(date, dateStyle = "short", locale = "de-DE") {
-    return new Intl.DateTimeFormat(locale, { dateStyle }).format(
-      createDateTimeObject(date)
-    );
+    return new Intl.DateTimeFormat(locale, { dateStyle }).format(createDateTimeObject(date));
   },
   time(time, timeStyle = "short", locale = "de-DE") {
-    return new Intl.DateTimeFormat(locale, { timeStyle }).format(
-      createDateTimeObject(time)
-    );
-  },
-  fullDateTime(dateString) {
-    return moment(dateString).format("LLLL");
-  },
-  fullDateTimeRange(startDate, endDate) {
-    if (startDate && endDate) {
-      const start = moment(startDate).format("LLLL");
-      const end = moment(endDate).format("LLLL");
-      return `${start} - ${end}`;
-    } else {
-      return "Zeitraum nicht verfügbar";
-    }
-  },
+    return new Intl.DateTimeFormat(locale, { timeStyle }).format(createDateTimeObject(time));
+  }
 };
+

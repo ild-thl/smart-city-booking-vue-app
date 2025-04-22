@@ -8,9 +8,8 @@ import EventCreateEventLocation from "@/views/Bookables/Events/Form/EventLocatio
 import EventCreateEventOrganizer from "@/views/Bookables/Events/Form/EventOrganizer.vue";
 import EventCreateAttendees from "@/views/Bookables/Events/Form/Attendees.vue";
 import EventCreateAgenda from "@/views/Bookables/Events/Form/Agenda.vue";
-import EventCreateAttachments from "@/views/Bookables/Events/Form/Attachments.vue";
+import EventCreateAttachements from "@/views/Bookables/Events/Form/Attachments.vue";
 import EventCreateImages from "@/views/Bookables/Events/Form/Images.vue";
-import SimpleEventCreator from "@/views/Bookables/Events/SimpleEventCreator.vue";
 import Rooms from "@/views/Bookables/Rooms/Rooms.vue";
 import Resources from "@/views/Bookables/Resources/Resources.vue";
 import Locations from "@/views/Bookables/Locations/Locations";
@@ -20,14 +19,11 @@ import Roles from "@/views/Management/Roles";
 import store from "@/store/index";
 import ToastService from "@/services/ToastService";
 import Tickets from "@/views/Bookables/Tickets/Tickets";
-import Bookings from "@/views/Bookings.vue";
+import Bookings from "@/views/Management/Bookings";
 import Settings from "@/views/Settings";
 import EditBookable from "@/views/Bookables/EditBookable";
 import ApiAuthService from "@/services/api/ApiAuthService";
-import Coupons from "@/views/Coupons.vue";
-import Instances from "@/views/Management/Instances.vue";
-import InstanceUsers from "@/views/Management/InstanceUsers.vue";
-import InstanceTenants from "@/views/Management/InstanceTenants.vue";
+import Coupons from "@/views/Management/Coupons";
 
 Vue.use(VueRouter);
 
@@ -51,45 +47,15 @@ const routes = [
     name: "dashboard",
     component: Home,
     meta: {
-      title: "Ihre Mandanten",
+      title: "Dashboard",
       requiresAuth: true,
       interfaceName: "dashboard",
       public: true,
     },
   },
   {
-    path: "/admin/instanz",
-    name: "instances",
-    component: Instances,
-    meta: {
-      title: "Instanz verwalten",
-      requiresAuth: true,
-      interfaceName: "instance",
-    },
-  },
-  {
-    path: "/admin/instanz/mandanten",
-    name: "instance-tenants",
-    component: InstanceTenants,
-    meta: {
-      title: "Mandanten",
-      requiresAuth: true,
-      interfaceName: "instance",
-    },
-  },
-  {
-    path: "/admin/instanz/benutzer",
-    name: "instance-users",
-    component: InstanceUsers,
-    meta: {
-      title: "Benutzer",
-      requiresAuth: true,
-      interfaceName: "instance",
-    },
-  },
-  {
     path: "/admin/mandanten",
-    name: "tenant",
+    name: "tenants",
     component: Tenants,
     meta: {
       title: "Mandanten",
@@ -297,16 +263,6 @@ const routes = [
     },
     children: [
       {
-        path: "simple-event",
-        name: "simple-event-creator",
-        component: SimpleEventCreator,
-        meta: {
-          title: "Veranstaltung erstellen",
-          requiresAuth: true,
-          interfaceName: "events",
-        },
-      },
-      {
         path: "information",
         name: "event-create-information",
         component: EventCreateInformation,
@@ -359,7 +315,7 @@ const routes = [
       {
         path: "anhaenge",
         name: "event-create-attachments",
-        component: EventCreateAttachments,
+        component: EventCreateAttachements,
         meta: {
           title: "Anhänge",
           requiresAuth: true,
@@ -380,7 +336,7 @@ const routes = [
   },
   {
     path: "/admin/einstellungen",
-    name: "settings",
+    name: "einstellungen",
     component: Settings,
     meta: {
       title: "Einstellungen",
@@ -446,7 +402,7 @@ const routes = [
     },
   },
   {
-    path: "/willkommen",
+    path: "/willkommen/:tenantId",
     name: "welcome",
     component: lazyLoad("Auth/Welcome"),
     meta: {
@@ -491,36 +447,6 @@ const routes = [
       requiresAuth: false,
     },
   },
-  {
-    path: "/booking/status/:tenantId",
-    name: "booking-status",
-    component: lazyLoad("BookingStatus"),
-    meta: {
-      title: "Buchungsstatus",
-      requiresAuth: false,
-    },
-    props: true,
-  },
-  {
-    path: "/booking/request-reject/:tenantId",
-    name: "booking-request-reject",
-    component: lazyLoad("RequestRejectBooking"),
-    meta: {
-      title: "Buchung stornieren",
-      requiresAuth: false,
-    },
-    props: true,
-  },
-  {
-    path: "/booking/verify-reject/:tenantId",
-    name: "booking-request-reject",
-    component: lazyLoad("VerifyRejectBooking"),
-    meta: {
-      title: "Stornierung bestätigen",
-      requiresAuth: false,
-    },
-    props: true,
-  },
 ];
 
 const router = new VueRouter({
@@ -534,14 +460,14 @@ function isLoggedIn() {
 }
 
 function isAuthorized(ifce) {
+  console.log("isAuthorized", ifce);
   return store.getters["user/isAuthorized"](ifce);
 }
 
 router.beforeEach(async (to, from, next) => {
   if (to.meta.requiresAuth) {
     const hasSession = await ApiAuthService.me()
-      .then((response) => {
-        store.dispatch("user/update", response.data);
+      .then(() => {
         return true;
       })
       .catch(() => {

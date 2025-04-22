@@ -180,42 +180,87 @@ export default {
         </v-col>
       </v-row>
       <p>
-        <v-progress-circular v-if="loading" indeterminate color="primary" size="24"></v-progress-circular>
+        <v-progress-circular
+          v-if="loading"
+          indeterminate
+          color="primary"
+          size="24"
+        ></v-progress-circular>
       </p>
-      <v-alert v-if="state === possibleStates.KC_AUTH_SUCCESS" dense text type="success">
+      <v-alert
+        v-if="state === possibleStates.KC_AUTH_SUCCESS"
+        dense
+        text
+        type="success"
+      >
         Sie wurden erfolgreich authentifiziert. Wollen Sie sich mit dem Benutzer
         <strong>{{ userEmail }}</strong> anmelden?
       </v-alert>
-      <v-alert v-if="state === possibleStates.KC_AUTH_ERROR" dense text type="error">
+      <v-alert
+        v-if="state === possibleStates.KC_AUTH_ERROR"
+        dense
+        text
+        type="error"
+      >
         Es ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.
       </v-alert>
-      <v-alert v-if="state === possibleStates.NO_USER_FOUND" dense text type="info">
+      <v-alert
+        v-if="state === possibleStates.NO_USER_FOUND"
+        dense
+        text
+        type="info"
+      >
         Wir konnten keinen Benutzer finden. Möchten Sie sich mit dem Benutzer
         <strong>{{ userEmail }}</strong> registrieren?
       </v-alert>
-      <v-alert v-if="state === possibleStates.SIGNUP_SUCCESS" dense text type="success">
+      <v-alert
+        v-if="state === possibleStates.SIGNUP_SUCCESS"
+        dense
+        text
+        type="success"
+      >
         Sie wurden erfolgreich registriert. Sie werden in Kürze angemeldet.
         <template v-slot:prepend>
           <v-progress-circular indeterminate></v-progress-circular>
         </template>
       </v-alert>
-      <v-alert v-if="state === possibleStates.SIGNUP_ERROR" dense text type="error">
+      <v-alert
+        v-if="state === possibleStates.SIGNUP_ERROR"
+        dense
+        text
+        type="error"
+      >
         Es ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.
       </v-alert>
     </v-card-text>
     <v-card-actions class="px-10 pb-10">
       <v-btn outlined @click="back"> zurück </v-btn>
       <v-spacer></v-spacer>
-      <v-btn v-if="state === possibleStates.KC_AUTH_SUCCESS" outlined elevation="0" @click="changeUser"
-        :loading="loading">
+      <v-btn
+        v-if="state === possibleStates.KC_AUTH_SUCCESS"
+        outlined
+        elevation="0"
+        @click="changeUser"
+        :loading="loading"
+      >
         Benutzer wechseln
       </v-btn>
-      <v-btn v-if="state === possibleStates.KC_AUTH_SUCCESS" color="primary" elevation="0" @click="signIn"
-        :loading="loading">
+      <v-btn
+        v-if="state === possibleStates.KC_AUTH_SUCCESS"
+        color="primary"
+        elevation="0"
+        @click="signIn"
+        :loading="loading"
+      >
         Anmelden
       </v-btn>
-      <v-btn v-if="state === possibleStates.NO_USER_FOUND" color="primary" elevation="0" @click="signUp"
-        :loading="loading">
+      <v-btn
+        v-if="state === possibleStates.NO_USER_FOUND"
+        color="primary"
+        elevation="0"
+        @click="signUp"
+        :loading="loading"
+      >
         Registrieren
       </v-btn>
     </v-card-actions>

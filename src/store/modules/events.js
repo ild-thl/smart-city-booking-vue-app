@@ -1,7 +1,7 @@
 const namespaced = true;
 const defaultState = {
   id: null,
-  tenantId: "",
+  tenant: "",
   information: {
     name: "",
     teaserText: "",
@@ -52,7 +52,7 @@ const defaultState = {
   isPublic: false,
 }
 const state = {
-  form: JSON.parse(JSON.stringify(defaultState))
+  form: { ...defaultState }
 };
 
 const mutations = {
@@ -85,7 +85,7 @@ const mutations = {
     state.form = payload;
   },
   CLEAR(state) {
-    state.form = JSON.parse(JSON.stringify(defaultState));
+    state.form = { ...defaultState };
   },
   UPDATE_SCHEDULES_FOR_DAY(state, payload) {
     // add schedules to the day
@@ -132,9 +132,6 @@ const actions = {
   },
   removeScheduleFromDay({ commit }, payload) {
     commit("REMOVE_SCHEDULE_FROM_DAY", payload);
-  },
-  reset({ commit }) {
-    commit("CLEAR");
   }
 };
 

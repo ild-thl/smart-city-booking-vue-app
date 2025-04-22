@@ -212,6 +212,14 @@ export default {
       inProgress: false,
       adminInterfaceProps: [
         {
+          name: "Mandanten",
+          value: "tenants",
+        },
+        {
+          name: "Benutzer",
+          value: "users",
+        },
+        {
           name: "Rollen",
           value: "roles",
         },
@@ -245,6 +253,14 @@ export default {
         },
       ],
       permissionStructure: [
+        {
+          name: "Mandanten",
+          value: "manageTenants",
+        },
+        {
+          name: "Benutzer",
+          value: "manageUsers",
+        },
         {
           name: "Rollen",
           value: "manageRoles",
@@ -306,12 +322,10 @@ export default {
     async submitChanges() {
       this.inProgress = true;
       if (this.$refs.form.validate()) {
-        try {
-          await ApiRolesService.submitRole(this.selectedRole);
-          this.closeDialog();
-        } finally {
-          this.inProgress = false;
-        }
+        delete this.selectedRole._id;
+        await ApiRolesService.submitRole(this.selectedRole);
+        this.inProgress = false;
+        this.closeDialog();
       } else {
         this.inProgress = false;
         // reset form after 2 seconds

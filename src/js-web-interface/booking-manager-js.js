@@ -535,7 +535,7 @@ class BookingManager {
       loginButton.addEventListener("click", () => {
         const username = loginForm.querySelector("input[name=username]").value;
         const password = loginForm.querySelector("input[name=password]").value;
-        const fetchUrl = `${this.url}/auth/signin`;
+        const fetchUrl = `${this.url}/auth/${this.tenant}/signin`;
         fetch(fetchUrl, {
           method: "POST",
           credentials: "include",
@@ -577,7 +577,7 @@ class BookingManager {
       console.log("Binding data to element with id bm-signout");
       const logoutButton = document.getElementById("bm-signout");
       logoutButton.addEventListener("click", () => {
-        const fetchUrl = `${this.url}/auth/signout`;
+        const fetchUrl = `${this.url}/auth/${this.tenant}/signout`;
         fetch(fetchUrl)
           .then(function (response) {
             return response.text();
@@ -663,7 +663,7 @@ class BookingManager {
       const userZip = profileForm.querySelector("input[name=zip]");
       const userCity = profileForm.querySelector("input[name=city]");
       const submitButton = document.getElementById("bm-submit-profile");
-      const fetchUrl = `${this.url}/auth/me`;
+      const fetchUrl = `${this.url}/auth/${this.tenant}/me`;
       fetch(fetchUrl, {
         credentials: "include",
       })
@@ -721,7 +721,7 @@ class BookingManager {
   }
 
   async isSignedIn() {
-    const fetchUrl = `${this.url}/auth/me`;
+    const fetchUrl = `${this.url}/auth/${this.tenant}/me`;
     try {
       const response = await fetch(fetchUrl, {
         method: "GET",

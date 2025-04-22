@@ -4,7 +4,7 @@
       <v-form ref="form" v-model="valid">
         <v-card>
           <v-card-title class="mx-3">
-            <span v-if="selectedBooking.id" class="text-h5"
+            <span v-if="selectedBooking._id" class="text-h5"
               >Buchung bearbeiten</span
             >
             <span v-else class="text-h5">Neue Buchung anlegen</span>
@@ -30,30 +30,23 @@
                     filled
                     hide-details
                     label="Mandant"
-                    v-model="selectedBooking.tenantId"
+                    v-model="selectedBooking.tenant"
                     readonly
                     disabled
                   ></v-text-field>
                 </v-col>
               </v-row>
               <v-row>
-                <v-col v-if="selectedBooking._populated && workflow.active">
-                  <v-select
-                    :items="[
-                      ...workflow.states,
-                      { name: 'Archive', id: 'archive' },
-                    ]"
-                    v-model="selectedBooking._populated.workflowStatus"
-                    label="Workflow Status"
-                    item-text="name"
-                    item-value="id"
-                  >
-                    <template #selection="{ item }">
-                      <v-chip small text-color="black" color="secondary">{{
-                        item.name
-                      }}</v-chip>
-                    </template>
-                  </v-select>
+                <v-col class="col-6">
+                  <v-text-field
+                    background-color="accent"
+                    filled
+                    hide-details
+                    label="Preis"
+                    v-model.number="selectedBooking.priceEur"
+                    prefix="€"
+                    type="number"
+                  ></v-text-field>
                 </v-col>
                 <v-col>
                   <v-checkbox
@@ -68,34 +61,6 @@
                     v-model="selectedBooking.isCommitted"
                     color="primary"
                   ></v-checkbox>
-                </v-col>
-                <v-col>
-                  <v-checkbox
-                    label="Ist storniert"
-                    v-model="selectedBooking.isRejected"
-                    color="error"
-                  ></v-checkbox>
-                </v-col>
-              </v-row>
-              <v-row>
-                <v-col>
-                  <v-select
-                    :items="activePaymentApps"
-                    v-model="selectedBooking.paymentProvider"
-                    label="Zahlungsmethode"
-                    item-text="title"
-                    item-value="id"
-                  >
-                  </v-select>
-                </v-col>
-                <v-col>
-                  <v-select
-                    :items="paymentMethod"
-                    v-model="selectedBooking.paymentMethod"
-                    label="Bezahlt mit"
-                    item-text="title"
-                    item-value="type"
-                  ></v-select>
                 </v-col>
               </v-row>
               <v-row>
@@ -141,54 +106,34 @@
               </v-row>
               <v-divider class="" />
               <v-list>
-                <v-list-item
-                  v-for="bookableItem in bookableItems"
-                  :key="bookableItem.id"
-                >
-                  <v-list-item-content>
-                    <v-list-item-title class="d-flex">
-                      <v-row class="align-center">
-                        <v-col class="col-auto">
-                          {{ bookableItem._bookableUsed.title }}
-                        </v-col>
+                <template v-for="bookableItem in bookableItems">
+                  <v-list-item>
+                    <v-list-item-content>
+                      <v-list-item-title class="d-flex">
+                        <div>{{ bookableItem._bookableUsed.title }}</div>
                         <v-spacer></v-spacer>
-                        <v-col class="col-4">
-                          <v-text-field
-                            v-model="bookableItem._bookableUsed.priceEur"
-                            filled
-                            prefix="€"
-                            background-color="accent"
-                            hide-details
-                            :label="isTimeRelated(bookableItem._bookableUsed)"
-                            type="number"
-                          ></v-text-field>
-                        </v-col>
-                        <v-col class="col-auto">
-                          <div class="d-flex">
-                            <v-btn
-                              icon
-                              x-small
-                              @click="decreaseAmount(bookableItem)"
-                            >
-                              <v-icon>mdi-minus</v-icon>
-                            </v-btn>
-                            <div class="px-1">{{ bookableItem.amount }}</div>
-                            <v-btn
-                              icon
-                              x-small
-                              @click="increaseAmount(bookableItem)"
-                            >
-                              <v-icon>mdi-plus</v-icon>
-                            </v-btn>
-                          </div>
-                        </v-col>
-                      </v-row>
-                    </v-list-item-title>
-                  </v-list-item-content>
-                </v-list-item>
+                        <v-btn
+                          icon
+                          x-small
+                          @click="decreaseAmount(bookableItem)"
+                        >
+                          <v-icon>mdi-minus</v-icon>
+                        </v-btn>
+                        <div class="px-1">{{ bookableItem.amount }}</div>
+                        <v-btn
+                          icon
+                          x-small
+                          @click="increaseAmount(bookableItem)"
+                        >
+                          <v-icon>mdi-plus</v-icon>
+                        </v-btn>
+                      </v-list-item-title>
+                    </v-list-item-content>
+                  </v-list-item>
+                </template>
               </v-list>
               <div
-                v-if="selectedBooking.bookableItems?.length === 0"
+                v-if="selectedBooking.bookableItems.length === 0"
                 class="text-center font-italic"
               >
                 Diese Buchung enthält keine Buchungen
@@ -532,7 +477,6 @@
 import ApiBookingService from "@/services/api/ApiBookingService";
 import { mapActions } from "vuex";
 import ToastService from "@/services/ToastService";
-import ApiTenantService from "@/services/api/ApiTenantService";
 
 export default {
   name: "BookingEdit",
@@ -548,10 +492,6 @@ export default {
     bookables: {
       type: Array,
       required: true,
-    },
-    workflow: {
-      type: Object,
-      required: false,
     },
   },
   data() {
@@ -569,78 +509,10 @@ export default {
 
       bookableId_temp: null,
 
-      activePaymentApps: [],
-
       events: [],
       validationRules: {
         mail: [(v) => /.+@.+\..+/.test(v) || "E-Mail muss gültig sein"],
       },
-      paymentMethod: [
-        {
-          type: "CASH",
-          title: "Bar",
-        },
-        {
-          type: "TRANSFER",
-          title: "Überweisung",
-        },
-        {
-          type: "CREDIT_CARD",
-          title: "Kreditkarte",
-        },
-        {
-          type: "DEBIT_CARD",
-          title: "EC-Karte",
-        },
-        {
-          type: "PAYPAL",
-          title: "PayPal",
-        },
-        {
-          type: "OTHER",
-          title: "Sonstiges",
-        },
-        {
-          type: "GIROPAY",
-          title: "Giropay",
-        },
-        {
-          type: "APPLE_PAY",
-          title: "Apple Pay",
-        },
-        {
-          type: "GOOGLE_PAY",
-          title: "Google Pay",
-        },
-        {
-          type: "UNKNOWN",
-          title: "Unbekannt",
-        },
-        {
-          type: "EPS",
-          title: "EPS",
-        },
-        {
-          type: "IDEAL",
-          title: "iDEAL",
-        },
-        {
-          type: "MAESTRO",
-          title: "Maestro",
-        },
-        {
-          type: "PAYDIRECT",
-          title: "paydirekt",
-        },
-        {
-          type: "SOFORT",
-          title: "SOFORT-Überweisung",
-        },
-        {
-          type: "BLUECODE",
-          title: "Bluecode",
-        },
-      ],
     };
   },
   computed: {
@@ -699,7 +571,7 @@ export default {
     timeTo: {
       get() {
         if (!this.selectedBooking.timeEnd) {
-          return this.formatTime(new Date());
+          return this.formatTime(new Date())
         }
         return this.formatTime(new Date(this.selectedBooking.timeEnd));
       },
@@ -733,9 +605,6 @@ export default {
 
     timeTo: function () {
       this.getEvents();
-    },
-    booking: function () {
-      this.fetchActivePaymentApps();
     },
   },
   methods: {
@@ -881,28 +750,6 @@ export default {
     removeBookingTimes() {
       this.selectedBooking.timeBegin = null;
       this.selectedBooking.timeEnd = null;
-    },
-    async fetchActivePaymentApps() {
-      try {
-        const response = await ApiTenantService.getTenantActivePaymentApps(
-          this.booking.tenantId
-        );
-        this.activePaymentApps = response.data;
-      } catch (error) {
-        console.log(error);
-      }
-    },
-    isTimeRelated(bookable) {
-      switch (bookable.priceCategory) {
-      case "per-item":
-        return "pro Stück";
-      case "per-hour":
-        return "pro Stunde";
-      case "per-day":
-        return "pro Tag";
-      default:
-        return "pro Stück";
-      }
     },
   },
   mounted() {

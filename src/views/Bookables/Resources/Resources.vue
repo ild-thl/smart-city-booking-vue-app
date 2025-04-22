@@ -114,9 +114,6 @@ export default {
     },
     ...mapGetters({
       loading: "loading/isLoading",
-      tenantId: "tenants/currentTenantId",
-      tenants: "tenants/tenants",
-      currentTenant: "tenants/currentTenant",
     }),
     BookablePermissionService() {
       return BookablePermissionService;
@@ -136,12 +133,6 @@ export default {
       }
 
       return this.api.resources;
-    },
-  },
-  watch: {
-    tenantId() {
-      this.fetchResources();
-      this.fetchFilterTags();
     },
   },
   methods: {

@@ -1,19 +1,11 @@
-import store from "@/store";
-
 export default {
   getRoles() {
-    const t = store.getters["tenants/currentTenantId"];
-    return ApiClient.get(`api/${t}/roles`, { withCredentials: true });
+    return ApiClient.get("api/roles", { withCredentials : true });
   },
   submitRole(role) {
-    const t = store.getters["tenants/currentTenantId"];
-
-    return ApiClient.put(`api/${t}/roles`, role, { withCredentials: true });
+    return ApiClient.put("api/roles", role ,{ withCredentials : true })
   },
   deleteRole(role) {
-    const t = store.getters["tenants/currentTenantId"];
-    return ApiClient.delete(`api/${t}/roles/${role.id}`, {
-      withCredentials: true,
-    });
-  },
+    return ApiClient.delete(`api/roles/${role.id}` ,{ withCredentials : true })
+  }
 };

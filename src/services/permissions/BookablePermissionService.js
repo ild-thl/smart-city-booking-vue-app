@@ -1,57 +1,29 @@
 import user from "@/store/modules/user";
-import store from "@/store";
 
 class BookablePermissionService {
   static isOwner(bookable) {
     return (
-      bookable.ownerUserId === user.state.data.user.id
+      bookable.ownerUserId === user.state.data.id &&
+      bookable.tenant === user.state.data.tenant
     );
-  }
-
-  static isInstanceOwner() {
-    return user.state.data.permissions.instanceOwner
   }
 
   static allowCreate() {
-    if (BookablePermissionService.isInstanceOwner()) return true;
-    const tenantId = store.getters["tenants/currentTenantId"];
-    const permissions = user.state.data.permissions.tenants.find(
-      (p) => p.tenantId === tenantId
-    );
-    if (!permissions) return false;
-    if(permissions.isOwner) return true;
-
-    return permissions.manageBookables.create;
+    return user.state.data.permissions.manageBookables.create;
   }
 
   static allowUpdate(bookable) {
-    if (BookablePermissionService.isInstanceOwner()) return true;
-    const tenantId = store.getters["tenants/currentTenantId"];
-    const permissions = user.state.data.permissions.tenants.find(
-      (p) => p.tenantId === tenantId
-    );
-    if (!permissions) return false;
-    if(permissions.isOwner) return true;
-
     return (
-      permissions.manageBookables.updateAny ||
-      (permissions.manageBookables.updateOwn &&
+      user.state.data.permissions.manageBookables.updateAny ||
+      (user.state.data.permissions.manageBookables.updateOwn &&
         BookablePermissionService.isOwner(bookable))
     );
   }
 
   static allowDelete(bookable) {
-    if (BookablePermissionService.isInstanceOwner()) return true;
-    const tenantId = store.getters["tenants/currentTenantId"];
-    const permissions = user.state.data.permissions.tenants.find(
-      (p) => p.tenantId === tenantId
-    );
-    if (!permissions) return false;
-    if(permissions.isOwner) return true;
-
     return (
-      permissions.manageBookables.deleteAny ||
-      (permissions.manageBookables.deleteOwn &&
+      user.state.data.permissions.manageBookables.deleteAny ||
+      (user.state.data.permissions.manageBookables.deleteOwn &&
         BookablePermissionService.isOwner(bookable))
     );
   }

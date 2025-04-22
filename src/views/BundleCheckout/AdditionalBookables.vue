@@ -100,7 +100,7 @@ export default {
   methods: {
     // Add a bookable to the booking
     async fetchBookables() {
-      const response = await ApiBookablesService.getPublicBookables(
+      const response = await ApiBookablesService.getBookables(
         this.leadItem.bookable.tenant
       );
 

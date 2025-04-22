@@ -1,36 +1,26 @@
 <script>
-import { mapGetters } from "vuex";
-import Utils from "@/utils/Utils";
-
 export default {
   name: "ContactInformation",
   data() {
-    return {};
-  },
-
-  computed: {
-    Utils() {
-      return Utils;
-    },
-    ...mapGetters({
-      instance: "instance/instance",
-    }),
+    return {
+      contactDetails: {
+        address: process.env.VUE_APP_CONTACT_ADDRESS || "",
+        url: process.env.VUE_APP_CONTACT_URL || "",
+      }};
   },
 };
+
+
 </script>
 
 <template>
   <p class="text-left mt-5">
-    <small v-if="instance?.contactAddress">
-      Dieser Service wird bereitgestellt vom {{ instance?.contactAddress }}.
-      Weitere Informationen und Kontaktmöglichkeiten finden Sie unter
-      <a
-        :href="'https://' + Utils.sanitizeUrl(instance?.contactUrl)"
-        target="_blank"
-        >{{ Utils.sanitizeUrl(instance?.contactUrl) }}</a
-      >.</small
-    >
+    <small v-if="contactDetails.address" >Dieser Service wird bereitgestellt vom {{ contactDetails.address }}. Weitere
+      Informationen und Kontaktmöglichkeiten finden Sie unter <a :href="contactDetails.url"
+                                                                 target="_blank">{{ contactDetails.url }}</a>.</small>
   </p>
 </template>
 
-<style scoped></style>
+<style scoped>
+
+</style>

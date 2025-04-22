@@ -1,55 +1,29 @@
 import user from "@/store/modules/user";
-import store from "@/store";
 
 class CouponPermissionService {
   static isOwner(coupon) {
-    return coupon.ownerUserId === user.state.data.user.id;
-  }
-
-  static isInstanceOwner() {
-    return user.state.data.permissions.instanceOwner
+    return (
+      coupon.ownerUserId === user.state.data.id &&
+      coupon.tenant === user.state.data.tenant
+    );
   }
 
   static allowCreate() {
-    if (CouponPermissionService.isInstanceOwner()) return true;
-    const tenantId = store.getters["tenants/currentTenantId"];
-    const permissions = user.state.data.permissions.tenants.find(
-      (p) => p.tenantId === tenantId
-    );
-    if (!permissions) return false;
-    if(permissions.isOwner) return true;
-
-    return permissions.manageBookings.create;
+    return user.state.data.permissions.manageBookings.create;
   }
 
   static allowUpdate(coupon) {
-    if (CouponPermissionService.isInstanceOwner()) return true;
-    const tenantId = store.getters["tenants/currentTenantId"];
-    const permissions = user.state.data.permissions.tenants.find(
-      (p) => p.tenantId === tenantId
-    );
-    if (!permissions) return false;
-    if(permissions.isOwner) return true;
-
     return (
-      permissions.manageBookings.updateAny ||
-      (permissions.manageBookings.updateOwn &&
+      user.state.data.permissions.manageBookings.updateAny ||
+      (user.state.data.permissions.manageBookings.updateOwn &&
         CouponPermissionService.isOwner(coupon))
     );
   }
 
   static allowDelete(coupon) {
-    if (CouponPermissionService.isInstanceOwner()) return true;
-    const tenantId = store.getters["tenants/currentTenantId"];
-    const permissions = user.state.data.permissions.tenants.find(
-      (p) => p.tenantId === tenantId
-    );
-    if (!permissions) return false;
-    if(permissions.isOwner) return true;
-
     return (
-      permissions.manageBookings.deleteAny ||
-      (permissions.manageBookings.deleteOwn &&
+      user.state.data.permissions.manageBookings.deleteAny ||
+      (user.state.data.permissions.manageBookings.deleteOwn &&
         CouponPermissionService.isOwner(coupon))
     );
   }

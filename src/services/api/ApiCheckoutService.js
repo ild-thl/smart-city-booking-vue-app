@@ -17,9 +17,4 @@ export default {
       }
     );
   },
-  getCheckoutPermissions(tenantId, id) {
-    return ApiClient.get(`api/${tenantId}/checkout/permissions/${id}`, {
-      withCredentials: true,
-    });
-  },
 };

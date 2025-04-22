@@ -4,7 +4,7 @@ import uniqueId from "lodash/uniqueId";
 const state = {
   form: {
     id: null,
-    tenantId: "",
+    tenant: "",
     type: "",
     title: "",
     description: "",
@@ -39,8 +39,7 @@ const state = {
     isLongRange: false,
     longRangeOptions: null,
     lockerDetails: {active: false, units: []},
-    requiredFields: [],
-    bookingNotes: ""
+    requiredFields: []
   },
 };
 
@@ -65,7 +64,7 @@ const mutations = {
   CLEAR(state) {
     state.form = {
       id: null,
-      tenantId: "",
+      tenant: "",
       type: "",
       title: "",
       description: "",
@@ -124,9 +123,6 @@ const actions = {
   clearForm({ commit }) {
     commit("CLEAR");
   },
-  reset({ commit }) {
-    commit("CLEAR");
-  }
 };
 
 const getters = {

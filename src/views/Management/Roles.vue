@@ -138,6 +138,8 @@ export default {
           value: "name",
         },
         { text: "Admin-Bereiche", value: "adminInterfaces" },
+        { text: "Benutzer", value: "manageUsers" },
+        { text: "Mandanten", value: "manageTenants" },
         { text: "Ressourcen", value: "manageBookables" },
         { text: "Buchungen", value: "manageBookings" },
         { text: "Rollen", value: "manageRoles" },
@@ -152,15 +154,9 @@ export default {
   computed: {
     ...mapGetters({
       loading: "loading/isLoading",
-      tenantId: "tenants/currentTenantId",
     }),
     RolePermissionService() {
       return RolePermissionService;
-    },
-  },
-  watch: {
-    tenantId() {
-      this.fetchRoles();
     },
   },
   methods: {

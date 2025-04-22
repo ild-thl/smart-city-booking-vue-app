@@ -15,9 +15,6 @@ const vuetify = new Vuetify({
     customProperties: true,
   },
   theme: {
-    options: {
-      customProperties: true,
-    },
     themes: {
       light: {
         primary: process.env.VUE_APP_PRIMARY_COLOR || "#0099DB",

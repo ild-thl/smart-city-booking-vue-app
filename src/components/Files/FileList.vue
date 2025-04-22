@@ -41,7 +41,7 @@
 
     <ChooseFile
       label="Datei"
-      :tenant-id="tenant"
+      :tenant="tenant"
       :allowed-extensions="allowedExtensions"
       :images-only="imagesOnly"
       v-model="selectedUrl"
