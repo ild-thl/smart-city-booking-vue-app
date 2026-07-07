@@ -1,7 +1,7 @@
 <template>
   <v-card
     class="kanban-card mb-2"
-    :class=" { 'kanban-card--dragging': isDragging }"
+    :class="{ 'kanban-card--dragging': isDragging }"
     @click="onOpenBooking(element.bookingItem.id)"
     hover
     outlined
@@ -76,13 +76,6 @@
           </v-list-item>
 
           <v-divider />
-
-          <v-list-item @click.stop="rejectBooking(element.id)">
-            <v-list-item-icon>
-              <v-icon small color="error">mdi-cancel</v-icon>
-            </v-list-item-icon>
-            <v-list-item-title>Stornieren</v-list-item-title>
-          </v-list-item>
         </v-list>
       </v-menu>
     </div>
@@ -101,13 +94,15 @@
     <div class="d-flex align-center justify-space-between px-2 pb-2">
       <div class="d-flex align-center flex-wrap" style="gap: 4px">
         <v-chip
-          v-if="element.bookingItem?.isPayed"
+          v-if="showPaymentStatusChip"
           x-small
-          color="success"
-          text-color="white"
+          :color="getPaymentStatusColor(element.bookingItem)"
+          :text-color="getPaymentStatusTextColor(element.bookingItem)"
         >
-          <v-icon x-small left>mdi-check</v-icon>
-          Bezahlt
+          <v-icon x-small left>{{
+            getPaymentStatusIcon(element.bookingItem)
+          }}</v-icon>
+          {{ getPaymentStatusLabel(element.bookingItem) }}
         </v-chip>
 
         <v-chip
@@ -134,8 +129,19 @@
 </template>
 
 <script>
+import BookingRejectConformationDialog from "@/components/Booking/BookingRejectConformationDialog.vue";
+import {
+  getPaymentStatus,
+  getPaymentStatusColor,
+  getPaymentStatusIcon,
+  getPaymentStatusLabel,
+  getPaymentStatusTextColor,
+  PAYMENT_STATUS,
+} from "@/utils/bookingPaymentStatus";
+
 export default {
   name: "BookingKanbanCard",
+  components: { BookingRejectConformationDialog },
   props: {
     element: {
       type: Object,
@@ -149,6 +155,11 @@ export default {
       type: Boolean,
       default: false,
     },
+  },
+  data() {
+    return {
+      dialogOpen: false,
+    };
   },
   computed: {
     bookableTitle() {
@@ -165,8 +176,17 @@ export default {
       if (days >= 2) return "duration--warning";
       return "duration--ok";
     },
+    showPaymentStatusChip() {
+      const booking = this.element.bookingItem;
+      if (!booking) return false;
+      return getPaymentStatus(booking) !== PAYMENT_STATUS.UNPAID;
+    },
   },
   methods: {
+    getPaymentStatusLabel,
+    getPaymentStatusColor,
+    getPaymentStatusIcon,
+    getPaymentStatusTextColor,
     onOpenBooking(bookingId) {
       this.$emit("open-booking", bookingId);
     },
@@ -176,8 +196,13 @@ export default {
     commitBooking(bookingId) {
       this.$emit("commit-booking", bookingId);
     },
-    rejectBooking(bookingId) {
-      this.$emit("reject-booking", bookingId);
+    rejectBooking(bookingId, reason = "", skipCancellation = false) {
+      console.log("rejectBooking", bookingId, reason, skipCancellation);
+      this.dialogOpen = false;
+      this.$emit("reject-booking", bookingId, reason, skipCancellation);
+    },
+    onRejectBooking() {
+      this.dialogOpen = true;
     },
     archiveTask(taskId) {
       this.$emit("archive-task", taskId);

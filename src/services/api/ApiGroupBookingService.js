@@ -16,18 +16,17 @@ export default {
   async payGroupBooking({ tenantId, id, paymentMethod, timePaid }) {
     const t = tenantId || store.getters["tenants/currentTenantId"];
 
-    const response = await ApiClient.post(
-      `api/${t}/group-bookings/${id}/pay`,
-      { paymentMethod: paymentMethod, timePaid }
-
-    );
+    const response = await ApiClient.post(`api/${t}/group-bookings/${id}/pay`, {
+      paymentMethod: paymentMethod,
+      timePaid,
+    });
     return response.data;
   },
-  async rejectGroupBooking(tenantId, groupBookingId, reason) {
+  async rejectGroupBooking(tenantId, groupBookingId, reason, skipCancellation) {
     const t = tenantId || store.getters["tenants/currentTenantId"];
     const response = await ApiClient.post(
       `api/${t}/group-bookings/${groupBookingId}/reject`,
-      { reason: reason }
+      { reason: reason, skipCancellation: skipCancellation }
     );
     return response.data;
   },
@@ -39,6 +38,14 @@ export default {
     const t = tenantId || store.getters["tenants/currentTenantId"];
     const response = await ApiClient.post(
       `api/${t}/group-bookings/${groupBookingId}/receipt`,
+      {}
+    );
+    return response.data;
+  },
+  async generateGroupInvoice(tenantId, groupBookingId, sendEmail = false) {
+    const t = tenantId || store.getters["tenants/currentTenantId"];
+    const response = await ApiClient.post(
+      `api/${t}/group-bookings/${groupBookingId}/invoice?sendEmail=${sendEmail}`,
       {}
     );
     return response.data;

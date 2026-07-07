@@ -19,17 +19,21 @@ import Users from "@/views/Management/TenantUsers.vue";
 import Roles from "@/views/Management/Roles";
 import Tickets from "@/views/Bookables/Tickets/Tickets";
 import Bookings from "@/views/Bookings.vue";
+import BookingEditPage from "@/views/BookingEditPage.vue";
 import Settings from "@/views/Settings";
-import EditBookable from "@/views/Bookables/EditBookable";
 import Coupons from "@/views/Coupons.vue";
 import Instances from "@/views/Management/Instances.vue";
 import InstanceUsers from "@/views/Management/InstanceUsers.vue";
 import InstanceTenants from "@/views/Management/InstanceTenants.vue";
+import RuleEngineRules from "@/views/Management/RuleEngineRules.vue";
+import RuleEngineEdit from "@/views/Management/RuleEngineEdit.vue";
+import RuleEngineExecutions from "@/views/Management/RuleEngineExecutions.vue";
 import { pipeline } from "./middleware";
 
 import { requiresAuth } from "./middlewares/auth";
 import { checkGroupBooking } from "./middlewares/groupBooking";
 import { checkInterface } from "./middlewares/interface";
+import { requireTenant } from "./middlewares/requireTenant";
 import { finalAuthRedirect } from "./middlewares/finalAuth";
 
 Vue.use(VueRouter);
@@ -86,6 +90,46 @@ const routes = [
     },
   },
   {
+    path: "/instance/rules",
+    name: "rules",
+    component: RuleEngineRules,
+    meta: {
+      title: "Automatisierungsregeln",
+      requiresAuth: true,
+      interfaceName: "instance",
+    },
+  },
+  {
+    path: "/instance/rules/executions",
+    name: "rule-executions",
+    component: RuleEngineExecutions,
+    meta: {
+      title: "Ausführungs-Historie",
+      requiresAuth: true,
+      interfaceName: "instance",
+    },
+  },
+  {
+    path: "/instance/rules/create",
+    name: "rule-create",
+    component: RuleEngineEdit,
+    meta: {
+      title: "Regel anlegen",
+      requiresAuth: true,
+      interfaceName: "instance",
+    },
+  },
+  {
+    path: "/instance/rules/:id/edit",
+    name: "rule-edit",
+    component: RuleEngineEdit,
+    meta: {
+      title: "Regel bearbeiten",
+      requiresAuth: true,
+      interfaceName: "instance",
+    },
+  },
+  {
     path: "/tenant",
     name: "tenant",
     component: Tenants,
@@ -136,6 +180,26 @@ const routes = [
     },
   },
   {
+    path: "/bookings/new",
+    name: "booking-create",
+    component: BookingEditPage,
+    meta: {
+      title: "Neue Buchung anlegen",
+      requiresAuth: true,
+      interfaceName: "bookings",
+    },
+  },
+  {
+    path: "/bookings/:bookingId/edit",
+    name: "booking-edit",
+    component: BookingEditPage,
+    meta: {
+      title: "Buchung bearbeiten",
+      requiresAuth: true,
+      interfaceName: "bookings",
+    },
+  },
+  {
     path: "/event-locations",
     name: "event-locations",
     component: Locations,
@@ -148,21 +212,10 @@ const routes = [
   {
     path: "/event-locations/edit",
     name: "location-edit",
-    component: EditBookable,
+    component: lazyLoad("Bookables/Locations/LocationEdit"),
     meta: {
       type: "event-location",
-      title: "Raum bearbeiten",
-      requiresAuth: true,
-      interfaceName: "locations",
-    },
-  },
-  {
-    path: "/event-locations/create",
-    name: "location-create",
-    component: EditBookable,
-    meta: {
-      type: "event-location",
-      title: "Raum anlegen",
+      title: "Veranstaltungsort bearbeiten",
       requiresAuth: true,
       interfaceName: "locations",
     },
@@ -180,21 +233,10 @@ const routes = [
   {
     path: "/rooms/edit",
     name: "room-edit",
-    component: EditBookable,
+    component: lazyLoad("Bookables/Rooms/RoomEdit"),
     meta: {
       type: "room",
       title: "Raum Bearbeiten",
-      requiresAuth: true,
-      interfaceName: "rooms",
-    },
-  },
-  {
-    path: "/rooms/create",
-    name: "room-create",
-    component: EditBookable,
-    meta: {
-      type: "room",
-      title: "Raum anlegen",
       requiresAuth: true,
       interfaceName: "rooms",
     },
@@ -205,7 +247,7 @@ const routes = [
     component: Resources,
     meta: {
       type: "resource",
-      title: "Ressourcen",
+      title: "Geräte & Weiteres",
       requiresAuth: true,
       interfaceName: "resources",
     },
@@ -213,21 +255,10 @@ const routes = [
   {
     path: "/resources/edit",
     name: "resource-edit",
-    component: EditBookable,
+    component: lazyLoad("Bookables/Resources/ResourceEdit"),
     meta: {
       type: "resource",
       title: "Raum bearbeiten",
-      requiresAuth: true,
-      interfaceName: "resources",
-    },
-  },
-  {
-    path: "/resources/create",
-    name: "resource-create",
-    component: EditBookable,
-    meta: {
-      type: "resource",
-      title: "Raum anlegen",
       requiresAuth: true,
       interfaceName: "resources",
     },
@@ -245,21 +276,10 @@ const routes = [
   {
     path: "/tickets/edit",
     name: "ticket-edit",
-    component: EditBookable,
+    component: lazyLoad("Bookables/Tickets/TicketEdit"),
     meta: {
       type: "ticket",
       title: "Ticket bearbeiten",
-      requiresAuth: true,
-      interfaceName: "tickets",
-    },
-  },
-  {
-    path: "/tickets/create",
-    name: "ticket-create",
-    component: EditBookable,
-    meta: {
-      type: "ticket",
-      title: "Ticket anlegen",
       requiresAuth: true,
       interfaceName: "tickets",
     },
@@ -407,6 +427,12 @@ const routes = [
     },
   },
   {
+    path: "/login/card/:appId",
+    name: "card-login",
+    component: lazyLoad("Auth/CardLogin"),
+    props: true,
+  },
+  {
     path: "/register",
     name: "register",
     component: lazyLoad("Auth/Register"),
@@ -461,6 +487,18 @@ const routes = [
       title: "E-Mail bestätigen",
       requiresAuth: false,
     },
+  },
+  {
+    path: "/auth/card/link-success",
+    name: "card-link-success",
+    component: lazyLoad("Auth/CardLinkSuccess"),
+    meta: { requiresAuth: false },
+  },
+  {
+    path: "/auth/card/link-failed",
+    name: "card-link-failed",
+    component: lazyLoad("Auth/CardLinkFailed"),
+    meta: { requiresAuth: false },
   },
   {
     path: "/password/reset",
@@ -536,21 +574,19 @@ const routerConfig = {
   routes,
 };
 
-
 if (process.env.BASE_URL) {
   console.log("Setting router base to", process.env.BASE_URL);
   routerConfig.base = process.env.BASE_URL;
 }
 
-
 const router = new VueRouter(routerConfig);
-
 
 router.beforeEach((to, from, next) => {
   const middlewares = [
     requiresAuth,
     checkGroupBooking,
     checkInterface,
+    requireTenant,
     finalAuthRedirect,
   ];
   const context = { to, from, next, router };

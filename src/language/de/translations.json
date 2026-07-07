@@ -9,7 +9,7 @@
     "success": {
       "default": {
         "title": "Erfolgreich angemeldet",
-        "message": "Sie haben sich erfolgreich im Admin angemeldet"
+        "message": "Sie haben sich erfolgreich angemeldet"
       }
     },
     "error": {
@@ -49,7 +49,7 @@
     "types": {
       "event-location": "Veranstaltungsort",
       "room": "Raum",
-      "resource": "Ressource",
+      "resource": "Gerät / Weiteres",
       "ticket": "Ticket"
     }
   },
@@ -90,6 +90,20 @@
       "success": {
         "title": "Erfolgreich erstellt",
         "message": "Das Element wurde erfolgreich erstellt."
+      },
+      "error": {
+        "title": "Fehler beim Erstellen",
+        "message": "Das Element konnte nicht erstellt werden. Bitte überprüfen Sie Ihre Eingaben und versuchen Sie es erneut."
+      }
+    },
+    "update": {
+      "success": {
+        "title": "Erfolgreich gespeichert",
+        "message": "Die Änderungen wurden erfolgreich gespeichert."
+      },
+      "error": {
+        "title": "Fehler beim Speichern",
+        "message": "Die Änderungen konnten nicht gespeichert werden. Bitte überprüfen Sie Ihre Eingaben und versuchen Sie es erneut."
       }
     },
     "duplicate": {
@@ -101,6 +115,18 @@
         "something-wrong": {
           "title": "Fehler",
           "message": "Leider ist ein Fehler beim Duplizieren aufgetreten. Bitte versuchen Sie es erneut."
+        }
+      }
+    },
+    "copyId": {
+      "success": {
+        "title": "ID kopiert",
+        "message": "Die ID des Buchungsobjekts wurde in die Zwischenablage kopiert."
+      },
+      "errors": {
+        "something-wrong": {
+          "title": "Fehler",
+          "message": "Die ID konnte nicht in die Zwischenablage kopiert werden."
         }
       }
     }
@@ -244,6 +270,18 @@
       "error-time-confict": {
         "title": "Zeitkonflikt",
         "message": "Die Buchung konnte nicht bearbeitet werden, da es zu einem Zeitkonflikt kommt."
+      }
+    },
+    "copyId": {
+      "success": {
+        "title": "ID kopiert",
+        "message": "Die Buchungs-ID wurde in die Zwischenablage kopiert."
+      },
+      "errors": {
+        "something-wrong": {
+          "title": "Fehler",
+          "message": "Die ID konnte nicht in die Zwischenablage kopiert werden."
+        }
       }
     },
     "receipt": {
@@ -396,6 +434,16 @@
         "title": "Fehler beim Erstellen",
         "message": "Der Buchungsbeleg konnte nicht erstellt werden."
       }
+    },
+    "invoice": {
+      "success": {
+        "title": "Erfolgreich erstellt",
+        "message": "Die Sammelrechnung wurde erfolgreich erstellt."
+      },
+      "error": {
+        "title": "Fehler beim Erstellen",
+        "message": "Die Sammelrechnung konnte nicht erstellt werden."
+      }
     }
   },
   "checkout": {
@@ -407,6 +455,28 @@
       "unexpected": {
         "title": "Ein Fehler ist aufgetreten.",
         "message": "Leider ist bei der Prüfung ein Fehler aufgetreten. Bitte versuchen Sie es später erneut."
+      }
+    },
+    "block_period_mismatch": {
+      "title": "Ungültiger Zeitraum",
+      "message": "Für dieses Objekt muss ein vollständiger Zeitraum gebucht werden."
+    },
+    "insufficient-lead-time": {
+      "title": "Vorlaufzeit nicht eingehalten",
+      "message": "Die Buchung liegt zu kurzfristig. Zwischen Buchung und Beginn muss ausreichend Vorbereitungszeit in den Servicezeiten liegen."
+    },
+    "block_period": {
+      "unavailable": {
+        "availability": "Bereits ausgebucht",
+        "permission": "Anmeldung erforderlich",
+        "block-period-mismatch": "Ungültiges Zeitfenster",
+        "max-booking-date": "Zu weit in der Zukunft",
+        "parent-availability": "Übergeordnetes Objekt belegt",
+        "child-bookings": "Abhängiges Objekt belegt",
+        "event-date": "Nicht verfügbar",
+        "event-seats": "Nicht verfügbar",
+        "past": "Vergangen",
+        "default": "Nicht verfügbar"
       }
     },
     "warning": {
@@ -587,7 +657,7 @@
       "rooms": "Räume",
       "locations": "Veranstaltungsorte",
       "events": "Veranstaltungen",
-      "resources": "Ressourcen",
+      "resources": "Geräte & Weiteres",
       "tickets": "Tickets",
       "bookings": "Buchungen",
       "coupons": "Rabatte",
@@ -612,6 +682,36 @@
       "error": {
         "title": "Fehler beim Herunterladen",
         "message": "Die Datei konnte nicht heruntergeladen werden."
+      }
+    }
+  },
+  "locker": {
+    "open": {
+      "success": {
+        "title": "Erfolgreich geöffnet",
+        "message": "Das Schließfach wurde erfolgreich geöffnet."
+      },
+      "error": {
+        "title": "Fehler beim Öffnen",
+        "message": "Das Schließfach konnte nicht geöffnet werden."
+      }
+    }
+  },
+  "invoice": {
+    "create": {
+      "success": {
+        "title": "Erfolgreich erstellt",
+        "message": "Die Rechnung wurde erfolgreich erstellt."
+      },
+      "error": {
+        "title": "Fehler beim Erstellen",
+        "message": "Die Rechnung konnte nicht erstellt werden."
+      }
+    },
+    "download": {
+      "error": {
+        "title": "Fehler beim Herunterladen",
+        "message": "Die Rechnung konnte nicht heruntergeladen werden."
       }
     }
   }

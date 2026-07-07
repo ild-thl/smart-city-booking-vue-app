@@ -34,6 +34,15 @@ const state = {
     specialOpeningHours: [],
     isLongRange: false,
     longRangeOptions: null,
+    isBlockPeriodRelated: false,
+    blockPeriods: [],
+
+    isLeadTimeRelated: false,
+    preparationLeadTimeMinutes: 0,
+    serviceHours: [],
+    isBufferRelated: false,
+    bufferTimeBeforeMinutes: null,
+    bufferTimeAfterMinutes: null,
 
     priceCategories: [
       {
@@ -47,6 +56,7 @@ const state = {
 
     enableCoupons: true,
 
+    requiresLogin: false,
     permittedUsers: [],
     permittedRoles: [],
     freeBookingUsers: [],
@@ -126,6 +136,15 @@ const mutations = {
       specialOpeningHours: [],
       isLongRange: false,
       longRangeOptions: null,
+      isBlockPeriodRelated: false,
+      blockPeriods: [],
+
+      isLeadTimeRelated: false,
+      preparationLeadTimeMinutes: 0,
+      serviceHours: [],
+      isBufferRelated: false,
+      bufferTimeBeforeMinutes: null,
+      bufferTimeAfterMinutes: null,
 
       priceCategories: [
         {

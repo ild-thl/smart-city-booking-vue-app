@@ -22,20 +22,28 @@
           </v-btn>
         </v-btn-toggle>
 
-        <v-tooltip v-if="currentView === 'kanban'" bottom>
-          <template v-slot:activator="{ on }">
-            <v-btn
-              v-on="on"
-              fab
-              small
-              class="ml-2 elevation-0 active-button"
-              @click="showBacklog = !showBacklog"
-            >
-              <v-icon>mdi-tray-full</v-icon>
-            </v-btn>
-          </template>
-          <span>Backlog ein-/ausblenden</span>
-        </v-tooltip>
+        <div>
+          <v-tooltip v-if="currentView === 'kanban'" bottom>
+            <template v-slot:activator="{ on }">
+              <v-btn
+                v-on="on"
+                icon
+                small
+                class="ml-2"
+                :class="{ 'active-button': showBacklog }"
+                @click="showBacklog = !showBacklog"
+              >
+                <v-icon>mdi-tray-full</v-icon>
+              </v-btn>
+            </template>
+            <span>Backlog ein-/ausblenden</span>
+          </v-tooltip>
+          <BookingExportButton
+            class="ml-auto"
+            :bookings="filteredBookings"
+            :tenant="tenantId"
+          />
+        </div>
       </div>
       <v-text-field
         v-model="searchTerm"
@@ -103,20 +111,11 @@
       bottom
       right
       rounded
-      @click="onOpenCreateBookings"
+      :to="{ name: 'booking-create' }"
       :disabled="!BookingPermissionService.allowCreate()"
     >
       <v-icon>mdi-plus</v-icon>Buchung erstellen
     </v-btn>
-    <BookingEdit
-      v-if="selectedBooking.id !== undefined"
-      :booking="selectedBooking"
-      :open="openEditDialog"
-      :bookables="bookables"
-      :workflow="workflow"
-      :group-booking="selectedGroupBooking"
-      @close="onCloseEditDialog"
-    />
     <BookingDeleteConformationDialog
       :to-delete="selectedBooking"
       :open="openDeleteDialog"
@@ -144,6 +143,7 @@
         <GroupBookingDetails
           :group-booking="selectedGroupBooking"
           @close="closeDialog('groupBooking')"
+          @update="updateGroupBookingView"
           @download-ical="onDownloadGroupBookingIcal"
         ></GroupBookingDetails>
       </div>
@@ -195,10 +195,8 @@ import AdminLayout from "@/layouts/Admin.vue";
 import { mapActions, mapGetters } from "vuex";
 import ApiBookingService from "@/services/api/ApiBookingService";
 import ApiGroupBookingService from "@/services/api/ApiGroupBookingService";
-import BookingEdit from "@/components/Booking/BookingEdit.vue";
 import BookingDeleteConformationDialog from "@/components/Booking/BookingDeleteConformationDialog.vue";
 import BookingRejectConformationDialog from "@/components/Booking/BookingRejectConformationDialog.vue";
-import ApiBookablesService from "@/services/api/ApiBookablesService";
 import BookingPermissionService from "@/services/permissions/BookingPermissionService";
 import BookingDetails from "@/components/Booking/BookingDetails.vue";
 import BookingOverviewCalendar from "@/components/Booking/BookingOverviewCalendar.vue";
@@ -217,9 +215,11 @@ import {
 import BookingPayDialog from "@/components/Booking/BookingPayDialog.vue";
 import ProcessingIndicator from "@/components/ProcessingIndicator.vue";
 import ProcessingService from "@/services/ProcessingService";
+import BookingExportButton from "@/components/Booking/BookingExportButton.vue";
 
 export default {
   components: {
+    BookingExportButton,
     ProcessingIndicator,
     BookingPayDialog,
     GroupBookingDeleteConformationDialog,
@@ -232,7 +232,6 @@ export default {
     BookingDeleteConformationDialog,
     BookingRejectConformationDialog,
     AdminLayout,
-    BookingEdit,
     BookingKanban,
   },
   data() {
@@ -263,7 +262,6 @@ export default {
         { text: "Zahlungsart", value: "payMethod" },
         { text: "", value: "controls", sortable: false },
       ],
-      openEditDialog: false,
       openDeleteDialog: false,
       openRejectDialog: false,
       openGroupBookingDialog: false,
@@ -273,7 +271,6 @@ export default {
       openPayDialog: false,
       selectedBooking: {},
       selectedGroupBooking: {},
-      bookables: [],
       openBookingDialog: false,
       currentView: "list",
       workflow: {},
@@ -345,7 +342,6 @@ export default {
   watch: {
     tenantId() {
       this.fetchBookings();
-      this.fetchBookables();
       this.fetchGroupBookings();
     },
     currentView(newView) {
@@ -417,15 +413,6 @@ export default {
       this.errors[action] = getBookingErrorMessage(code);
     },
 
-    fetchBookables() {
-      ApiBookablesService.getBookables()
-        .then((response) => {
-          this.bookables = response.data;
-        })
-        .catch((error) => {
-          console.log(error);
-        });
-    },
     async fetchBookings() {
       await this.startLoading("fetch-bookings");
 
@@ -476,9 +463,6 @@ export default {
     },
     async closeDialog(type) {
       switch (type) {
-        case "edit":
-          this.openEditDialog = false;
-          break;
         case "delete":
           this.openDeleteDialog = false;
           break;
@@ -695,13 +679,19 @@ export default {
         ProcessingService.hide(operationId);
       }
     },
-    async rejectBooking(id, rejectReason) {
+    async rejectBooking(id, rejectReason, skipCancellation, bankDetails) {
       const operationId = ProcessingService.showOverlay(
         "Buchung wird abgelehnt..."
       );
       try {
         await this.startLoading("reject-booking");
-        await ApiBookingService.rejectBooking(id, this.tenantId, rejectReason);
+        await ApiBookingService.rejectBooking(
+          id,
+          this.tenantId,
+          rejectReason,
+          skipCancellation,
+          bankDetails
+        );
         await this.fetchBookings();
         await this.fetchGroupBookings();
         this.openRejectDialog = false;
@@ -711,7 +701,7 @@ export default {
         ProcessingService.hide(operationId);
       }
     },
-    async rejectGroupBooking(id, rejectReason) {
+    async rejectGroupBooking(id, rejectReason, skipCancellation) {
       const groupBooking = this.api.groupBookings.find((groupBooking) =>
         groupBooking.bookingIds.includes(id)
       );
@@ -723,7 +713,8 @@ export default {
         const response = await ApiGroupBookingService.rejectGroupBooking(
           null,
           groupBooking.id,
-          rejectReason
+          rejectReason,
+          skipCancellation
         );
 
         if (!response.success) {
@@ -770,34 +761,20 @@ export default {
         {},
         {
           ...groupBooking,
-          bookings: groupBooking.bookingIds.map((bookingId) => {
-            return this.api.bookings.find(
-              (booking) => booking.id === bookingId
-            );
-          }),
+          bookings: groupBooking.bookingIds
+            .map((bookingId) =>
+              this.api.bookings.find((booking) => booking.id === bookingId)
+            )
+            .filter(Boolean),
         }
       );
       this.openGroupBookingDialog = true;
     },
     onOpenEditBooking(bookingId) {
-      this.selectedBooking = Object.assign(
-        {},
-        this.api.bookings.find((booking) => booking.id === bookingId)
-      );
-      const hasGroupBooking = this.api.groupBookings.find((groupBooking) =>
-        groupBooking.bookingIds.includes(bookingId)
-      );
-      if (hasGroupBooking) {
-        this.selectedGroupBooking = Object.assign(
-          {},
-          this.api.groupBookings.find((groupBooking) =>
-            groupBooking.bookingIds.includes(bookingId)
-          )
-        );
-      } else {
-        this.selectedGroupBooking = null;
-      }
-      this.openEditDialog = true;
+      this.$router.push({
+        name: "booking-edit",
+        params: { bookingId },
+      });
     },
     onOpenDeleteDialog(bookingId) {
       const hasGroupBooking = this.api.groupBookings.find((groupBooking) =>
@@ -827,11 +804,6 @@ export default {
         this.openRejectDialog = true;
       }
     },
-    onCloseEditDialog() {
-      this.fetchBookings();
-      this.fetchGroupBookings();
-      this.openEditDialog = false;
-    },
     onCloseDeleteDialog() {
       this.fetchBookings();
       this.fetchGroupBookings();
@@ -845,42 +817,36 @@ export default {
     onCloseBookingDialog() {
       this.openBookingDialog = false;
     },
-    onOpenCreateBookings() {
-      this.selectedBooking = {
-        id: null,
-        tenant: this.tenantId,
-        assignedUserId: null,
-        attachments: [],
-        bookableItems: [],
-        comment: null,
-        company: null,
-        couponCode: null,
-        isCommitted: false,
-        isPayed: false,
-        location: null,
-        lockerInfo: null,
-        mail: null,
-        name: null,
-        paymentProvider: null,
-        paymentMethod: null,
-        phone: null,
-        priceEur: 0,
-        street: null,
-        timeBegin: Date.now(),
-        timeCreated: Date.now(),
-        timeEnd: Date.now(),
-        vatIncludedEur: null,
-        zipCode: null,
-      };
-      this.selectedBooking.tenantId = this.tenantId;
-      this.openEditDialog = true;
-    },
     async updateBooking(bookingId) {
       await this.fetchBookings();
       await this.fetchGroupBookings();
       this.selectedBooking = Object.assign(
         {},
         this.api.bookings.find((booking) => booking.id === bookingId)
+      );
+    },
+    async updateGroupBookingView() {
+      const groupBookingId = this.selectedGroupBooking?.id;
+      if (!groupBookingId) return;
+
+      await this.fetchBookings();
+      await this.fetchGroupBookings();
+
+      const groupBooking = this.api.groupBookings.find(
+        (gb) => gb.id === groupBookingId
+      );
+      if (!groupBooking) return;
+
+      this.selectedGroupBooking = Object.assign(
+        {},
+        {
+          ...groupBooking,
+          bookings: groupBooking.bookingIds
+            .map((bookingId) =>
+              this.api.bookings.find((booking) => booking.id === bookingId)
+            )
+            .filter(Boolean),
+        }
       );
     },
     initializeFuse() {
@@ -952,7 +918,6 @@ export default {
 
     try {
       await this.fetchBookings();
-      await this.fetchBookables();
       await this.fetchWorkflow();
       await this.fetchGroupBookings();
     } catch (error) {

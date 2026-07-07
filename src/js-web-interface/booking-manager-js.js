@@ -24,6 +24,24 @@
  *   });
  * </script>
  */
+// Mirrors src/utils/bookingPaymentStatus.js for the standalone CDN bundle.
+function bmIsFreeBooking(booking) {
+  if (booking?.priceEur == null) {
+    return false;
+  }
+  return Number(booking.priceEur) <= 0;
+}
+
+function bmGetPaymentStatusLabel(booking) {
+  if (bmIsFreeBooking(booking)) {
+    return "Kostenfrei";
+  }
+  if (booking.isPayed) {
+    return "Bezahlt";
+  }
+  return "Offen";
+}
+
 // eslint-disable-next-line no-unused-vars
 class BookingManager {
   /**
@@ -707,7 +725,7 @@ class BookingManager {
     if (document.getElementById("bm-booking-table")) {
       const tableHeader = document.getElementById("bm-booking-table-header");
       const tableBody = document.getElementById("bm-booking-table-body");
-      const fetchUrl = `${this.url}/api/${this.tenant}/mybookings?populate=true`;
+      const fetchUrl = `${this.url}/api/${this.tenant}/bookings/assigned?populate=true`;
       fetch(fetchUrl, {
         credentials: "include",
       })
@@ -725,18 +743,14 @@ class BookingManager {
               ),
               isCommitted: booking.isCommitted,
               isPayed: booking.isPayed,
+              priceEur: booking.priceEur,
             };
           });
           bookings.forEach((booking) => {
-            if (booking.isPayed && booking.isCommitted) {
-              booking.status = "Freigegeben / Bezahlt";
-            } else if (booking.isPayed && !booking.isCommitted) {
-              booking.status = "Nicht freigegeben / Bezahlt";
-            } else if (!booking.isPayed && booking.isCommitted) {
-              booking.status = "Freigegeben / Nicht bezahlt";
-            } else {
-              booking.status = "Nicht freigegeben / Nicht bezahlt";
-            }
+            const commitLabel = booking.isCommitted
+              ? "Freigegeben"
+              : "Nicht freigegeben";
+            booking.status = `${commitLabel} / ${bmGetPaymentStatusLabel(booking)}`;
             booking.title = booking.bookable.map((bookable) => {
               return bookable._bookableUsed.title;
             });
@@ -967,9 +981,9 @@ class BookingManager {
         const formatTime = (date) => {
           return date
             ? date.toLocaleTimeString("de-DE", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })
+              hour: "2-digit",
+              minute: "2-digit",
+            })
             : "";
         };
 
