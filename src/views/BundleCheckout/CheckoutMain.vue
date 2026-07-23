@@ -29,9 +29,8 @@
         <v-row>
           <v-col
             v-if="step < steps.length"
-            :class="
-              leadItem.bookable && !preventBooking ? 'col-md-8' : 'col-md'
-            "
+            :cols="12"
+            :md="leadItem.bookable && !preventBooking ? 8 : 12"
           >
             <component
               :is="steps[step - 1].component"
@@ -52,17 +51,18 @@
               :coupon="coupon"
               :selected-payment-app="selectedPaymentApp"
               :trace="trace"
+              :checkout-id="checkoutId"
               :final-check="step === steps.length"
               :me="me"
-              :free-booking-allowed="
-                step === steps.length ? false : leadItem.freeBookingAllowed
+              :booking-discount-percent="
+                step === steps.length ? 0 : leadItem.bookingDiscountPercent
               "
-              :initial-book-with-price="bookWithPrice"
+              :initial-book-without-discount="bookWithoutDiscount"
               @back="previousPage()"
               @validate-items="validateItems()"
               @redeem-coupon="redeemCoupon"
               @remove-coupon="removeCoupon"
-              @set-book-with-price="setBookWithPrice"
+              @set-book-without-discount="setBookWithoutDiscount"
             ></checkout-quick-summary>
           </v-col>
         </v-row>
@@ -89,6 +89,8 @@ import CheckoutAmountSelector from "@/views/BundleCheckout/CheckoutAmountSelecto
 import { mapActions, mapGetters } from "vuex";
 import ApiRolesService from "@/services/api/ApiRolesService";
 import ToastService from "@/services/ToastService";
+import { isTimeDependentBookable } from "@/utils/bookableBookingMode";
+import { formatCheckoutValidationError } from "@/utils/checkoutErrors";
 
 export default {
   name: "CheckoutMain",
@@ -106,6 +108,7 @@ export default {
 
   data() {
     return {
+      checkoutId: null,
       steps: [],
       loading: true,
       trace: false,
@@ -125,6 +128,7 @@ export default {
         regularGrossPriceEur: null,
         userGrossPriceEur: null,
         freeBookingAllowed: false,
+        bookingDiscountPercent: 0,
       },
       subsequentItems: [],
       timeBegin: null,
@@ -145,7 +149,7 @@ export default {
       activePaymentApps: [],
       selectedPaymentApp: null,
       allowSeriesFlag: false,
-      bookWithPrice: false,
+      bookWithoutDiscount: false,
     };
   },
 
@@ -155,6 +159,8 @@ export default {
     this.tenant = this.$route.query.tenant;
     this.leadItem.bookableId = this.$route.query.id;
     this.leadItem.amount = parseInt(this.$route.query.amount || 1);
+    this.timeBegin = this.parseStringToTimestamp(this.$route.query.start) ;
+    this.timeEnd = this.parseStringToTimestamp(this.$route.query.end);
     await this.init();
     await this.fetchTenant();
   },
@@ -328,11 +334,7 @@ export default {
         timeSelectorStep.props["show-back"] = false;
       }
 
-      if (
-        this.leadItem.bookable?.isScheduleRelated ||
-        this.leadItem.bookable?.isTimePeriodRelated ||
-        this.leadItem.bookable?.isLongRange
-      ) {
+      if (isTimeDependentBookable(this.leadItem.bookable)) {
         stepsToReturn.push(timeSelectorStep);
       }
 
@@ -367,15 +369,12 @@ export default {
     },
 
     shouldShowPaymentStep() {
-      if (this.leadItem.freeBookingAllowed && !this.bookWithPrice) {
+      if (this.activePaymentApps.length <= 1 || !this.leadItem.bookable) {
         return false;
       }
 
-      return (
-        this.activePaymentApps.length > 1 &&
-        this.leadItem.bookable &&
-        (this.leadItem.bookable.priceCategories.some((pC) => pC.priceEur > 0) ||
-          this.leadItem.userPriceEur > 0)
+      return [this.leadItem, ...this.subsequentItems].some(
+        (item) => (item.userPriceEur ?? 0) > 0
       );
     },
 
@@ -391,6 +390,7 @@ export default {
         regularGrossPriceEur: null,
         userGrossPriceEur: null,
         freeBookingAllowed: false,
+        bookingDiscountPercent: 0,
       };
       this.subsequentItems = [];
       this.timeBegin = null;
@@ -409,26 +409,41 @@ export default {
       this.coupon = null;
     },
 
+    fillContactDetailsFromUser(user) {
+      this.contactDetails.mail = user?.id || null;
+      this.contactDetails.name =
+        [user?.firstName, user?.lastName].filter(Boolean).join(" ") || null;
+      this.contactDetails.phone = user?.phone || null;
+      this.contactDetails.street = user?.address || null;
+      this.contactDetails.zipCode = user?.zipCode || null;
+      this.contactDetails.location = user?.city || null;
+      this.contactDetails.company = user?.company || null;
+    },
+
+    clearContactDetailsUserFields() {
+      this.contactDetails.mail = null;
+      this.contactDetails.name = null;
+      this.contactDetails.phone = null;
+      this.contactDetails.street = null;
+      this.contactDetails.zipCode = null;
+      this.contactDetails.location = null;
+      this.contactDetails.company = null;
+    },
+
     async fetchMe() {
       try {
         const { data } = await ApiAuthService.me(true);
         this.me = data.user;
-        this.contactDetails.mail = this.me.id;
-        this.contactDetails.name = this.me.firstName + " " + this.me.lastName;
-        this.contactDetails.phone = this.me.phone;
-        this.contactDetails.street = this.me.address;
-        this.contactDetails.zipCode = this.me.zipCode;
-        this.contactDetails.location = this.me.city;
-        this.contactDetails.company = this.me.company;
+        this.fillContactDetailsFromUser(this.me);
       } catch (error) {
+        if (this.user) {
+          this.me = this.user;
+          this.fillContactDetailsFromUser(this.user);
+          return;
+        }
+
         this.me = null;
-        this.contactDetails.mail = null;
-        this.contactDetails.name = null;
-        this.contactDetails.phone = null;
-        this.contactDetails.street = null;
-        this.contactDetails.zipCode = null;
-        this.contactDetails.location = null;
-        this.contactDetails.company = null;
+        this.clearContactDetailsUserFields();
       }
     },
 
@@ -440,6 +455,7 @@ export default {
         );
         this.preventBooking = false;
       } catch (error) {
+        console.log("Error while checking checkout permissions", error);
         this.preventBooking = true;
         this.loginRequired = error.response.status === 401;
         this.bookingPermission = error.response.status !== 403;
@@ -457,7 +473,8 @@ export default {
           this.leadItem.bookable = response.data;
           if (
             this.leadItem.bookable.permittedRoles?.length > 0 ||
-            this.leadItem.bookable.permittedUsers?.length > 0
+            this.leadItem.bookable.permittedUsers?.length > 0 ||
+            this.leadItem.bookable.requiresLogin
           ) {
             this.loginRequired = true;
           }
@@ -485,9 +502,7 @@ export default {
     async validateItems() {
       for (let item of [this.leadItem, ...this.subsequentItems]) {
         if (
-          (item.bookable?.isScheduleRelated ||
-            item.bookable?.isTimePeriodRelated ||
-            item.bookable?.isLongRange) &&
+          isTimeDependentBookable(item.bookable) &&
           (this.timeBegin == null || this.timeEnd == null)
         ) {
           item.valid = null;
@@ -500,10 +515,14 @@ export default {
               this.timeBegin,
               this.timeEnd,
               this.coupon?.id,
-              this.bookWithPrice
+              this.bookWithoutDiscount,
+              this.checkoutId
             );
 
             if (response.status === 200) {
+              if (response.data.checkoutId) {
+                this.checkoutId = response.data.checkoutId;
+              }
               item.regularPriceEur = response.data.regularPriceEur;
               item.userPriceEur = response.data.userPriceEur;
               item.regularGrossPriceEur = response.data.regularGrossPriceEur;
@@ -511,18 +530,24 @@ export default {
               item.valid = true;
               item.freeBookingAllowed =
                 response.data.freeBookingAllowed || false;
+              item.bookingDiscountPercent =
+                response.data.bookingDiscountPercent || 0;
 
               delete item.error;
             }
           } catch (error) {
+            this.checkoutId =
+              error.response.data.checkoutId || this.checkoutId || null;
+
             item.regularPriceEur = null;
             item.userPriceEur = null;
             item.regularGrossPriceEur = null;
             item.userGrossPriceEur = null;
             item.freeBookingAllowed = false;
+            item.bookingDiscountPercent = 0;
 
             item.valid = false;
-            item.error = error.response.data;
+            item.error = formatCheckoutValidationError(error.response?.data);
           } finally {
             const previousStepCount = this.steps.length;
 
@@ -645,7 +670,11 @@ export default {
       this.allowSeriesFlag = false;
 
       const item = this.leadItem;
-      if (!item?.bookable || !item.bookable.groupBooking?.enabled) {
+      if (
+        !item?.bookable ||
+        item.bookable.isBlockPeriodRelated ||
+        !item.bookable.groupBooking?.enabled
+      ) {
         return;
       }
 
@@ -667,8 +696,8 @@ export default {
         console.log("Error while fetching user roles", error);
       }
     },
-    async setBookWithPrice(value) {
-      this.bookWithPrice = value;
+    async setBookWithoutDiscount(value) {
+      this.bookWithoutDiscount = value;
       await this.validateItems();
     },
 
@@ -685,6 +714,14 @@ export default {
       ) {
         this.step = newStepCount;
       }
+    },
+
+    parseStringToTimestamp(dateString) {
+      const timestamp = parseInt(dateString);
+      if(!isNaN(timestamp)) {
+        return timestamp;
+      }
+      return null;
     },
   },
 

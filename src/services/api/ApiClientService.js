@@ -1,146 +1,71 @@
 import axios from "axios";
+import { createAuthTransport } from "../auth/createAuthTransport";
+import { getAuthMode } from "../auth/authMode";
 
 class ApiClientService {
   constructor() {
-    this.client = axios.create({
-      baseURL: `${process.env.VUE_APP_SERVER_BASE_URL}/`,
-      withCredentials: false,
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-    });
-
-    this.accessToken = localStorage.getItem("accessToken");
-    this.refreshToken = localStorage.getItem("refreshToken");
-
-    this.isRefreshing = false;
-    this.refreshSubscribers = [];
-
+    this.transport = createAuthTransport();
+    this.client = this.transport.createClient(axios);
+    this.transport.bindClient(this.client);
     this.setupInterceptors();
   }
 
-  onTokenRefreshed(newToken) {
-    this.refreshSubscribers.forEach(callback => callback(newToken));
-    this.refreshSubscribers = [];
+  get authMode() {
+    return getAuthMode();
   }
 
-  addRefreshSubscriber(callback) {
-    this.refreshSubscribers.push(callback);
+  setKeycloakRestoring(value) {
+    this.transport.setKeycloakRestoring?.(value);
   }
 
   setupInterceptors() {
     this.client.interceptors.request.use(
-      (config) => {
-        if (this.accessToken) {
-          config.headers.Authorization = `Bearer ${this.accessToken}`;
-        }
-        return config;
-      },
-      (error) => {
-        return Promise.reject(error);
-      }
+      (config) => this.transport.onRequest(config),
+      (error) => Promise.reject(error)
     );
 
     this.client.interceptors.response.use(
       (response) => response,
-      async (error) => {
-        const originalRequest = error.config;
-
-        if (
-          error.response?.status === 401 &&
-          !originalRequest._retry &&
-          !originalRequest.url?.includes("/auth/refresh") &&
-          this.refreshToken
-        ) {
-          if (this.isRefreshing) {
-            return new Promise((resolve) => {
-              this.addRefreshSubscriber((newToken) => {
-                originalRequest.headers.Authorization = `Bearer ${newToken}`;
-                resolve(this.client(originalRequest));
-              });
-            });
-          }
-
-          originalRequest._retry = true;
-          this.isRefreshing = true;
-
-          try {
-            await this.refreshAccessToken();
-
-            this.onTokenRefreshed(this.accessToken);
-
-            originalRequest.headers.Authorization = `Bearer ${this.accessToken}`;
-            return this.client(originalRequest);
-          } catch (refreshError) {
-            this.clearTokens();
-
-            if (window.location.pathname !== "/login") {
-              window.location.href = "/login";
-            }
-
-            return Promise.reject(refreshError);
-          } finally {
-            this.isRefreshing = false;
-          }
-        }
-
-        return Promise.reject(error);
-      }
+      (error) => this.transport.onResponseError(error)
     );
   }
 
+  /**
+   * Lokale Tokens setzen (Direct mode). In BFF mode only marks session.
+   */
   setTokens(accessToken, refreshToken) {
-    this.accessToken = accessToken;
-    this.refreshToken = refreshToken;
+    return this.transport.setTokens(accessToken, refreshToken);
+  }
 
-    localStorage.setItem("accessToken", accessToken);
-    localStorage.setItem("refreshToken", refreshToken);
+  /**
+   * Keycloak-Auth aktivieren (Direct mode only).
+   */
+  setKeycloakAuth() {
+    return this.transport.setKeycloakAuth();
   }
 
   clearTokens() {
-    this.accessToken = null;
-    this.refreshToken = null;
-
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
+    return this.transport.clearSession();
   }
 
   async refreshAccessToken() {
-    if (!this.refreshToken) {
-      throw new Error("No refresh token available");
-    }
-
-    try {
-      const response = await axios.post(
-        `${process.env.VUE_APP_SERVER_BASE_URL}/auth/refresh`,
-        { refreshToken: this.refreshToken },
-        {
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      const { accessToken, refreshToken } = response.data;
-
-      this.setTokens(accessToken, refreshToken);
-
-      return accessToken;
-    } catch (error) {
-      console.error("Token refresh failed:", error.response?.data || error.message);
-      this.clearTokens();
-      throw error;
-    }
+    return this.transport.refresh();
   }
 
   isAuthenticated() {
-    return !!this.accessToken;
+    return this.transport.isAuthenticated();
+  }
+
+  getAuthType() {
+    return this.transport.getAuthType();
   }
 
   getRefreshToken() {
-    return this.refreshToken;
+    return this.transport.getRefreshToken();
+  }
+
+  supportsClientSideKeycloak() {
+    return this.transport.supportsClientSideKeycloak();
   }
 
   get(url, config = {}) {

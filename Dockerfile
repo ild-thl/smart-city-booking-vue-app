@@ -1,30 +1,35 @@
-# Multi-stage
-# 1) Node image for building frontend assets
-# 2) nginx stage to serve frontend assets
+# Admin UI image (nginx) with optional embedded Admin BFF (Node).
+# Runtime: VUE_APP_AUTH_MODE=direct|bff — BFF starts in-process when mode is bff
+# (or ADMIN_BFF_ENABLED=true). Same image for all instances.
 
-# Name the node stage "builder"
-FROM node:18-alpine AS builder
-# Set working directory
+# --- Optional BFF dependencies ---
+FROM node:20-alpine AS bff-deps
+WORKDIR /bff
+COPY bff/package.json bff/package-lock.json ./
+RUN npm ci --omit=dev
+COPY bff/src ./src
+
+# --- Vue Admin UI build ---
+FROM node:18-alpine AS ui-builder
 WORKDIR /app
-
-# npm cache cleanup
 RUN npm cache clean --force
-
-# Copy all files from current directory to working dir in image
 COPY . .
-# install node modules and build assets
 RUN npm ci
 RUN npm run build
 
-# nginx state for serving content
+# --- Runtime: nginx + node (for embedded BFF) ---
 FROM nginx:alpine
-# Set working directory to nginx asset directory
 WORKDIR /app
 
-# Copy static assets from builder stage
-COPY --from=builder /app/dist .
-COPY nginx.conf /etc/nginx/nginx.conf
+# Node runtime for optional embedded BFF (musl, matches alpine)
+RUN apk add --no-cache nodejs
+
+COPY --from=ui-builder /app/dist .
+COPY --from=bff-deps /bff /opt/admin-bff
 
 COPY build_utils/substitute_environment_variables.sh /substitute_environment_variables.sh
-RUN chmod +x /substitute_environment_variables.sh
-ENTRYPOINT ["/substitute_environment_variables.sh"]
+COPY build_utils/docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /substitute_environment_variables.sh /docker-entrypoint.sh
+
+EXPOSE 80
+ENTRYPOINT ["/docker-entrypoint.sh"]

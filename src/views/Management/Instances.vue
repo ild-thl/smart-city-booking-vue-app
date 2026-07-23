@@ -62,10 +62,16 @@
           $refs.contentCol && ($refs.contentCol.$el || $refs.contentCol)
         "
         @submit="submitChanges"
-        @cancel="fetchInstance"
+        @cancel="onRestoreChanges"
         show-restore
         :disabled="inProgress || isLoading || !validRoot || hasUnsavedChanges"
         :in-progress="inProgress"
+      />
+
+      <UnsavedChangesDialog
+        v-model="leaveDialogOpen"
+        @stay="resolveLeaveConfirm(false)"
+        @discard="resolveLeaveConfirm(true)"
       />
     </div>
   </AdminLayout>
@@ -75,34 +81,38 @@
 import AdminLayout from "@/layouts/Admin.vue";
 import ApiInstanceService from "@/services/api/ApiInstanceService";
 import ApiRolesService from "@/services/api/ApiRolesService";
-import MailKonfiguration from "@/components/Tenant/MailKonfiguration.vue";
 import ApiUsersService from "@/services/api/ApiUsersService";
 import { mapActions, mapGetters } from "vuex";
 import SaveBar from "@/components/commons/SaveBar.vue";
-
-// new child components
+import UnsavedChangesDialog from "@/components/commons/UnsavedChangesDialog.vue";
+import unsavedChangesGuard from "@/mixins/unsavedChangesGuard";
 import InstanceEditGeneral from "@/components/Instance/Edit/InstanceEditGeneral.vue";
 import InstanceEditMail from "@/components/Instance/Edit/InstanceEditMail.vue";
 import InstanceEditOwners from "@/components/Instance/Edit/InstanceEditOwners.vue";
-import InstanceEditSSO from "@/components/Instance/Edit/InstanceEditSSO.vue";
 import InstanceEditCatalog from "@/components/Instance/Edit/InstanceEditCatalog.vue";
 import ApiCatalogService from "@/services/api/ApiCatalogService";
 import InstanceEditTenants from "@/components/Instance/Edit/InstanceEditTenants.vue";
 import ApiTenantService from "@/services/api/ApiTenantService";
+import InstanceEditBookables from "@/components/Instance/Edit/InstanceEditBookables.vue";
+import InstanceEditAuth from "@/components/Instance/Edit/InstanceEditAuth.vue";
+import InstanceEditCheckout from "@/components/Instance/Edit/InstanceEditCheckout.vue";
 
 export default {
   name: "Instances",
   components: {
-    MailKonfiguration,
     AdminLayout,
     SaveBar,
+    UnsavedChangesDialog,
     InstanceEditGeneral,
     InstanceEditMail,
     InstanceEditOwners,
-    InstanceEditSSO,
+    InstanceEditAuth,
     InstanceEditCatalog,
     InstanceEditTenants,
+    InstanceEditBookables,
+    InstanceEditCheckout,
   },
+  mixins: [unsavedChangesGuard],
   data() {
     return {
       instance: null,
@@ -135,10 +145,10 @@ export default {
           comp: "InstanceEditOwners",
         },
         {
-          key: "sso",
-          label: "Single-Sign On",
-          icon: "mdi-lock",
-          comp: "InstanceEditSSO",
+          key: "auth",
+          label: "Authentifizierung",
+          icon: "mdi-shield-lock",
+          comp: "InstanceEditAuth",
         },
         {
           key: "tenants",
@@ -146,21 +156,39 @@ export default {
           icon: "mdi-domain",
           comp: "InstanceEditTenants",
         },
-        /** This feature is currently disabled
-         {
-         key: "catalog",
-         label: "Katalog",
-         icon: "mdi-book-open",
-         comp: "InstanceEditCatalog",
-         },
-        */
+        {
+          key: "portal",
+          label: "Portal",
+          icon: "mdi-web",
+          comp: "InstanceEditCatalog",
+        },
+        {
+          key: "bookables",
+          label: "Buchungsobjekte",
+          icon: "mdi-calendar-check",
+          comp: "InstanceEditBookables",
+        },
+        {
+          key: "checkout",
+          label: "Checkout",
+          icon: "mdi-basket",
+          comp: "InstanceEditCheckout",
+        },
       ],
       catalog: {
         type: "instanze",
+        hero: {
+          title: "",
+          subtitle: "",
+        },
+      },
+      defaultBranding: {
+        active: false,
         theme: {
-          active: false,
           colors: { primary: "", secondary: "" },
         },
+        logoUrl: "",
+        faviconUrl: "",
       },
       defaultKeycloak: {
         id: "keycloak",
@@ -185,25 +213,14 @@ export default {
     currentComponent() {
       return this.tabs[this.activeTab]?.comp || "InstanceEditGeneral";
     },
-    instanceMailConfig: {
-      get() {
-        return {
-          genericMailTemplate: this.instance.mailTemplate,
-          noreplyMail: this.instance.noreplyMail,
-          noreplyDisplayName: this.instance.noreplyDisplayName,
-          noreplyHost: this.instance.noreplyHost,
-          noreplyPort: this.instance.noreplyPort,
-          noreplyUser: this.instance.noreplyUser,
-          noreplyPassword: this.instance.noreplyPassword,
-          noreplyUseGraphApi: this.instance.noreplyUseGraphApi,
-          noreplyStarttls: this.instance.noreplyStarttls,
-          noreplyGraphTenantId: this.instance.noreplyGraphTenantId,
-          noreplyGraphClientId: this.instance.noreplyGraphClientId,
-          noreplyGraphClientSecret: this.instance.noreplyGraphClientSecret,
-        };
-      },
-    },
     hasUnsavedChanges() {
+      if (
+        this.isLoading ||
+        !this.originalSnapshot ||
+        typeof this.originalSnapshot !== "string"
+      ) {
+        return false;
+      }
       return (
         JSON.stringify({ instance: this.instance, catalog: this.catalog }) !==
         this.originalSnapshot
@@ -223,6 +240,12 @@ export default {
     ...mapActions({
       addToast: "toasts/add",
     }),
+    async onRestoreChanges() {
+      const discard = await this.confirmDiscardChanges();
+      if (discard) {
+        await this.fetchInstance();
+      }
+    },
     fetchTenants() {
       ApiTenantService.getTenants()
         .then((response) => {
@@ -245,13 +268,36 @@ export default {
 
       merged.roleMapping.roles = Array.isArray(merged.roleMapping.roles)
         ? merged.roleMapping.roles.map((r) => ({
-            tenantId: r.tenantId ?? null,
-            keycloakRole: r.keycloakRole ?? "",
-            tenantRoleId: r.tenantRoleId ?? null,
-          }))
+          tenantId: r.tenantId ?? null,
+          keycloakRole: r.keycloakRole ?? "",
+          tenantRoleId: r.tenantRoleId ?? null,
+        }))
         : [];
 
       return merged;
+    },
+
+    normalizeCardAuthApp(raw = {}) {
+      return {
+        id: raw.id || "",
+        type: "card-auth",
+        label: raw.label || "Card Authentication",
+        description: raw.description || "",
+        enabled: raw.enabled || false,
+        serviceUrl: raw.serviceUrl || "",
+        apiToken: raw.apiToken || "",
+        cardType: raw.cardType || "",
+        publicIdField: {
+          label: raw.publicIdField?.label || "Card Number",
+          placeholder: raw.publicIdField?.placeholder || "",
+          helpText: raw.publicIdField?.helpText || "",
+        },
+        secretField: {
+          label: raw.secretField?.label || "Secret",
+          placeholder: raw.secretField?.placeholder || "",
+          helpText: raw.secretField?.helpText || "",
+        },
+      };
     },
 
     onUpdateInstance(next) {
@@ -264,7 +310,20 @@ export default {
       this.instance = await ApiInstanceService.getInstance();
       await this.fetchCatalog();
 
-      // ensure applications array exists and has a keycloak entry
+      this.instance.branding = {
+        ...this.defaultBranding,
+        ...(this.instance.branding || {}),
+        theme: {
+          ...this.defaultBranding.theme,
+          ...((this.instance.branding && this.instance.branding.theme) || {}),
+          colors: {
+            ...this.defaultBranding.theme.colors,
+            ...(((this.instance.branding && this.instance.branding.theme) || {})
+              .colors || {}),
+          },
+        },
+      };
+
       if (!this.instance.applications) this.instance.applications = [];
 
       const idx = this.instance.applications.findIndex(
@@ -280,6 +339,13 @@ export default {
           this.normalizeKeycloakApp(this.instance.applications[idx])
         );
       }
+
+      this.instance.applications = this.instance.applications.map((app) => {
+        if (app.type === "card-auth") {
+          return this.normalizeCardAuthApp(app);
+        }
+        return app;
+      });
 
       // snapshot after fetching
       this.$nextTick(() => {
@@ -352,4 +418,11 @@ export default {
 };
 </script>
 
-<style scoped></style>
+<style scoped>
+.page-content {
+  padding-bottom: calc(
+    56px + /* SaveBar height */ 12px + /* bottom margin */ 12px + /* gap */ 16px
+      /* extra spacing */
+  );
+}
+</style>

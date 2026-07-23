@@ -5,15 +5,18 @@ export default {
     timeBegin,
     timeEnd,
     couponCode,
-    bookWithPrice
+    bookWithoutDiscount,
+    checkoutID
   ) {
+
     return ApiClient.post(`api/${tenant}/checkout/validateItem`, {
       ...item,
       tenant,
       timeBegin,
       timeEnd,
       couponCode,
-      bookWithPrice,
+      bookWithoutDiscount,
+      checkoutId: checkoutID,
     });
   },
   checkout(tenant, payload, simulate = true) {

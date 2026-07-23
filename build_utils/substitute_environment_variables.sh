@@ -7,13 +7,193 @@ replace_env_var() {
   local placeholder=$2
   local default_value=$3
   env_var=${env_var:-$default_value}
-  for file in $ROOT_DIR/js/*.js* $ROOT_DIR/index.html $ROOT_DIR/precache-manifest*.js;
+  for file in $ROOT_DIR/js/*.js* $ROOT_DIR/index.html $ROOT_DIR/precache-manifest*.js $ROOT_DIR/css/*.css;
     do
+        [ -f "$file" ] || continue
         sed -i "s|$placeholder|$env_var|g" $file
-        done
+    done
 }
 
-# Replace env vars in files served by NGINX
+# ==========================================
+# BASE_URL replacement
+# ==========================================
+BASE_URL="${BASE_URL:-/}"
+case "$BASE_URL" in
+  */) ;;
+  *)  BASE_URL="${BASE_URL}/" ;;
+esac
+
+echo "==> Replacing BASE_URL placeholder with: ${BASE_URL}"
+
+find "$ROOT_DIR" -type f \( -name '*.html' -o -name '*.js' -o -name '*.css' \) \
+  -exec sed -i "s|__BASE_URL_PLACEHOLDER__/|${BASE_URL}|g" {} +
+find "$ROOT_DIR" -type f \( -name '*.html' -o -name '*.js' -o -name '*.css' \) \
+  -exec sed -i "s|__BASE_URL_PLACEHOLDER__|${BASE_URL}|g" {} +
+
+# ==========================================
+# Nginx Config
+# ==========================================
+LOCATION_PATH="${BASE_URL%/}"
+LOCATION_PATH="${LOCATION_PATH:-/}"
+STRIP_PREFIX="${STRIP_PREFIX:-true}"
+
+# Optional Admin BFF upstream (e.g. http://127.0.0.1:3001).
+# Register BOTH /admin/api/ and /api/ so it works with:
+# - STRIP_PREFIX=false → browser/edge keep /admin/api/*
+# - STRIP_PREFIX=true  → edge strips /admin → container sees /api/*
+ADMIN_BFF_UPSTREAM="${ADMIN_BFF_UPSTREAM:-}"
+ADMIN_BFF_LOCATION=""
+if [ -n "$ADMIN_BFF_UPSTREAM" ]; then
+  ADMIN_BFF_LOCATION=$(cat <<BFLEOF
+    location = /admin/api {
+      return 301 /admin/api/;
+    }
+    location ^~ /admin/api/ {
+      proxy_pass ${ADMIN_BFF_UPSTREAM}/;
+      proxy_http_version 1.1;
+      proxy_set_header Host \$host;
+      proxy_set_header X-Real-IP \$remote_addr;
+      proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto \$scheme;
+      proxy_set_header X-Forwarded-Host \$host;
+      proxy_set_header Cookie \$http_cookie;
+      proxy_pass_header Set-Cookie;
+    }
+    location = /api {
+      return 301 /api/;
+    }
+    location ^~ /api/ {
+      proxy_pass ${ADMIN_BFF_UPSTREAM}/;
+      proxy_http_version 1.1;
+      proxy_set_header Host \$host;
+      proxy_set_header X-Real-IP \$remote_addr;
+      proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto \$scheme;
+      proxy_set_header X-Forwarded-Host \$host;
+      proxy_set_header Cookie \$http_cookie;
+      proxy_pass_header Set-Cookie;
+    }
+BFLEOF
+)
+  echo "==> Admin BFF proxy enabled → ${ADMIN_BFF_UPSTREAM}"
+  echo "    nginx locations: /admin/api/ and /api/ (STRIP_PREFIX=${STRIP_PREFIX})"
+fi
+
+if [ "$LOCATION_PATH" = "/" ] || [ "$STRIP_PREFIX" = "true" ]; then
+
+cat > /etc/nginx/nginx.conf <<NGINXEOF
+user  nginx;
+worker_processes  1;
+error_log  /var/log/nginx/error.log warn;
+pid        /var/run/nginx.pid;
+events { worker_connections 1024; }
+http {
+  include       /etc/nginx/mime.types;
+  default_type  application/octet-stream;
+  log_format  main  '\$remote_addr - \$remote_user [\$time_local] "\$request" '
+                    '\$status \$body_bytes_sent "\$http_referer" '
+                    '"\$http_user_agent" "\$http_x_forwarded_for"';
+  access_log  /var/log/nginx/access.log  main;
+  sendfile on;
+  keepalive_timeout 65;
+  add_header X-Frame-Options "DENY" always;
+  server {
+    listen 80;
+    server_name localhost;
+${ADMIN_BFF_LOCATION}
+    location = /silent-check-sso.html {
+      root /app;
+      add_header X-Frame-Options "SAMEORIGIN" always;
+      add_header Content-Security-Policy "frame-ancestors 'self'" always;
+      add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+    }
+    location = /index.html {
+      root /app;
+      add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+    }
+    location ~* ^/(js|css|img|fonts)/ {
+      root /app;
+      try_files \$uri =404;
+      add_header Cache-Control "public, max-age=31536000, immutable" always;
+    }
+    location / {
+      root   /app;
+      index  index.html;
+      add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+      try_files \$uri \$uri/ /index.html;
+    }
+  }
+}
+NGINXEOF
+echo "==> Generated nginx.conf (location /)"
+
+else
+
+cat > /etc/nginx/nginx.conf <<NGINXEOF
+user  nginx;
+worker_processes  1;
+error_log  /var/log/nginx/error.log warn;
+pid        /var/run/nginx.pid;
+events { worker_connections 1024; }
+http {
+  include       /etc/nginx/mime.types;
+  default_type  application/octet-stream;
+  log_format  main  '\$remote_addr - \$remote_user [\$time_local] "\$request" '
+                    '\$status \$body_bytes_sent "\$http_referer" '
+                    '"\$http_user_agent" "\$http_x_forwarded_for"';
+  access_log  /var/log/nginx/access.log  main;
+  sendfile on;
+  keepalive_timeout 65;
+  add_header X-Frame-Options "DENY" always;
+  server {
+    listen 80;
+    server_name localhost;
+${ADMIN_BFF_LOCATION}
+    location = ${LOCATION_PATH} {
+      return 301 ${LOCATION_PATH}/;
+    }
+    location = ${LOCATION_PATH}/silent-check-sso.html {
+      alias /app/silent-check-sso.html;
+      add_header X-Frame-Options "SAMEORIGIN" always;
+      add_header Content-Security-Policy "frame-ancestors 'self'" always;
+      add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+    }
+    location = ${LOCATION_PATH}/index.html {
+      alias /app/index.html;
+      add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+    }
+    location ^~ ${LOCATION_PATH}/js/ {
+      alias /app/js/;
+      add_header Cache-Control "public, max-age=31536000, immutable" always;
+    }
+    location ^~ ${LOCATION_PATH}/css/ {
+      alias /app/css/;
+      add_header Cache-Control "public, max-age=31536000, immutable" always;
+    }
+    location ^~ ${LOCATION_PATH}/img/ {
+      alias /app/img/;
+      add_header Cache-Control "public, max-age=31536000, immutable" always;
+    }
+    location ^~ ${LOCATION_PATH}/fonts/ {
+      alias /app/fonts/;
+      add_header Cache-Control "public, max-age=31536000, immutable" always;
+    }
+    location ${LOCATION_PATH}/ {
+      alias /app/;
+      index index.html;
+      add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+      try_files \$uri \$uri/ ${LOCATION_PATH}/index.html;
+    }
+  }
+}
+NGINXEOF
+echo "==> Generated nginx.conf (location ${LOCATION_PATH}/)"
+
+fi
+
+# ==========================================
+# Replace VUE_APP_* env vars
+# ==========================================
 replace_env_var "$VUE_APP_SERVER_BASE_URL" "VUE_APP_SERVER_BASE_URL_PLACEHOLDER"
 replace_env_var "$VUE_APP_NAME" "VUE_APP_NAME_PLACEHOLDER"
 replace_env_var "$VUE_APP_IS_PRODUCTION" "VUE_APP_IS_PRODUCTION_PLACEHOLDER"
@@ -21,7 +201,6 @@ replace_env_var "$VUE_APP_IS_PRODUCTION" "VUE_APP_IS_PRODUCTION_PLACEHOLDER"
 replace_env_var "$VUE_APP_CONTACT_ADDRESS" "VUE_APP_CONTACT_ADDRESS_PLACEHOLDER"
 replace_env_var "$VUE_APP_CONTACT_URL" "VUE_APP_CONTACT_URL_PLACEHOLDER"
 
-# Theme colors for the light theme
 replace_env_var "$VUE_APP_PRIMARY_COLOR" "VUE_APP_PRIMARY_COLOR_PLACEHOLDER" "#0099DB"
 replace_env_var "$VUE_APP_SECONDARY_COLOR" "VUE_APP_SECONDARY_COLOR_PLACEHOLDER" "#FFCC00"
 replace_env_var "$VUE_APP_ACCENT_COLOR" "VUE_APP_ACCENT_COLOR_PLACEHOLDER" "#e5f5fc"
@@ -32,7 +211,6 @@ replace_env_var "$VUE_APP_WARNING_COLOR" "VUE_APP_WARNING_COLOR_PLACEHOLDER" "#F
 replace_env_var "$VUE_APP_BODY_COLOR" "VUE_APP_BODY_COLOR_PLACEHOLDER" "#707070"
 replace_env_var "$VUE_APP_DARKGREY_COLOR" "VUE_APP_DARKGREY_COLOR_PLACEHOLDER" "#3b3b3b"
 
-# Theme colors for the dark theme
 replace_env_var "$VUE_APP_PRIMARY_COLOR_DARK" "VUE_APP_PRIMARY_COLOR_DARK_PLACEHOLDER" "#0099DB"
 replace_env_var "$VUE_APP_SECONDARY_COLOR_DARK" "VUE_APP_SECONDARY_COLOR_DARK_PLACEHOLDER" "#FFCC00"
 replace_env_var "$VUE_APP_ACCENT_COLOR_DARK" "VUE_APP_ACCENT_COLOR_DARK_PLACEHOLDER" "#282828"
@@ -43,8 +221,14 @@ replace_env_var "$VUE_APP_WARNING_COLOR_DARK" "VUE_APP_WARNING_COLOR_DARK_PLACEH
 replace_env_var "$VUE_APP_BODY_COLOR_DARK" "VUE_APP_BODY_COLOR_DARK_PLACEHOLDER" "#707070"
 replace_env_var "$VUE_APP_DARKGREY_COLOR_DARK" "VUE_APP_DARKGREY_COLOR_DARK_PLACEHOLDER" "#f5f5f5"
 
-# Usersnap API key
 replace_env_var "$VUE_APP_USERSNAP_API_KEY" "VUE_APP_USERSNAP_API_KEY_PLACEHOLDER" ""
 
-# Starting NGINX
+replace_env_var "$VUE_APP_SILENT_SSO_ENABLED" "VUE_APP_SILENT_SSO_ENABLED_PLACEHOLDER" ""
+
+replace_env_var "$VUE_APP_BOOKABLE_EXPERT_MODE_DEFAULT" "VUE_APP_BOOKABLE_EXPERT_MODE_DEFAULT_PLACEHOLDER" ""
+
+replace_env_var "$VUE_APP_AUTH_MODE" "VUE_APP_AUTH_MODE_PLACEHOLDER" "direct"
+replace_env_var "$VUE_APP_BFF_BASE_URL" "VUE_APP_BFF_BASE_URL_PLACEHOLDER" "/admin/api"
+
+echo "==> Starting nginx"
 nginx -g 'daemon off;'

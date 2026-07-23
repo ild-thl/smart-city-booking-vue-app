@@ -739,6 +739,7 @@
 
 <script>
 import ApiTenantService from "@/services/api/ApiTenantService";
+import { getApiErrorMessage } from "@/services/api/apiErrorMessage";
 import MailKonfiguration from "@/components/Tenant/MailKonfiguration.vue";
 import { mapActions } from "vuex";
 
@@ -825,7 +826,7 @@ export default {
     tenantMailConfig: {
       get() {
         return {
-          mailTemplate: this.tenant.genericMailTemplate,
+          genericMailTemplate: this.tenant.genericMailTemplate,
           noreplyMail: this.tenant.noreplyMail,
           noreplyDisplayName: this.tenant.noreplyDisplayName,
           noreplyHost: this.tenant.noreplyHost,
@@ -901,6 +902,7 @@ export default {
       this.tenant.noreplyGraphTenantId = newConfig.noreplyGraphTenantId;
       this.tenant.noreplyGraphClientId = newConfig.noreplyGraphClientId;
       this.tenant.noreplyGraphClientSecret = newConfig.noreplyGraphClientSecret;
+      this.tenant.genericMailTemplate = newConfig.genericMailTemplate;
     },
     closeDialog() {
       this.$emit("close");
@@ -920,7 +922,10 @@ export default {
           this.$emit("close");
         } catch (e) {
           await this.addToast({
-            message: "Fehler beim Speichern der Änderungen.",
+            message: getApiErrorMessage(
+              e,
+              "Fehler beim Speichern der Änderungen.",
+            ),
             type: "error",
           });
           this.inProgress = false;

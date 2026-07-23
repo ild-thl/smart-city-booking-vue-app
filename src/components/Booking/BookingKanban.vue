@@ -42,6 +42,7 @@
           @drag-move="onMove"
           @open-booking="onOpenBooking"
           @open-edit-booking="onOpenEditBooking"
+          @open-group-booking="onOpenGroupBooking"
           @commit-booking="commitBooking"
           @reject-booking="rejectBooking"
           @archive-task="archiveTask"
@@ -64,6 +65,7 @@
         @drag-move="onMove"
         @open-booking="onOpenBooking"
         @open-edit-booking="onOpenEditBooking"
+        @open-group-booking="onOpenGroupBooking"
         @commit-booking="commitBooking"
         @pay-booking="payBooking"
         @reject-booking="rejectBooking"
@@ -213,14 +215,17 @@ export default {
     onOpenEditBooking(bookingId) {
       this.$emit("open-edit-booking", bookingId);
     },
+    onOpenGroupBooking(groupBookingId) {
+      this.$emit("open-group-booking", groupBookingId);
+    },
     commitBooking(bookingId) {
       this.$emit("commit-booking", bookingId);
     },
     payBooking(id) {
       this.$emit("pay-booking", id);
     },
-    rejectBooking(bookingId) {
-      this.$emit("reject-booking", bookingId);
+    rejectBooking(bookingId, reason = null, skipCancellation = false) {
+      this.$emit("reject-booking", bookingId, reason, skipCancellation);
     },
 
     onMove(evt) {

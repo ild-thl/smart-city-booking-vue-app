@@ -46,7 +46,7 @@ export default {
     const t = tenant || store.getters["tenants/currentTenantId"];
     return ApiClient.post(
       `api/${t}/checkout?simulate=${simulate || false}`,
-      bookingAttempt,
+      bookingAttempt
     );
   },
   async commitBooking(id) {
@@ -62,15 +62,58 @@ export default {
     );
     return response.data;
   },
-  rejectBooking(id, tenantId, reason) {
+  async getCancellationRefundPreview(id, tenantId) {
     const t = tenantId || store.getters["tenants/currentTenantId"];
-    return ApiClient.post(`api/${t}/bookings/${id}/reject`, { reason: reason });
+    const response = await ApiClient.get(
+      `api/${t}/bookings/${id}/cancellation-refund-preview`
+    );
+    return response.data;
   },
-  requestRejectBooking(id, tenantId, reason) {
+  async getPublicCancellationRefundPreview(id, tenantId, name) {
     const t = tenantId || store.getters["tenants/currentTenantId"];
-    return ApiClient.post(`api/${t}/bookings/${id}/request-reject`, {
+    const response = await ApiClient.get(
+      `api/${t}/bookings/${id}/cancellation-refund-preview/public`,
+      {
+        params: { name },
+      }
+    );
+    return response.data;
+  },
+  async getHookCancellationRefundPreview(id, tenantId, hookId) {
+    const t = tenantId || store.getters["tenants/currentTenantId"];
+    const response = await ApiClient.get(
+      `api/${t}/bookings/${id}/hooks/${hookId}/cancellation-refund-preview`
+    );
+    return response.data;
+  },
+  rejectBooking(
+    id,
+    tenantId,
+    reason,
+    skipCancellation,
+    bankDetails,
+    refundPercentage
+  ) {
+    const t = tenantId || store.getters["tenants/currentTenantId"];
+    const payload = {
       reason: reason,
-    });
+      skipCancellation: skipCancellation,
+    };
+    if (bankDetails) {
+      payload.bankDetails = bankDetails;
+    }
+    if (refundPercentage !== undefined) {
+      payload.refundPercentage = refundPercentage;
+    }
+    return ApiClient.post(`api/${t}/bookings/${id}/reject`, payload);
+  },
+  requestRejectBooking(id, tenantId, reason, bankDetails) {
+    const t = tenantId || store.getters["tenants/currentTenantId"];
+    const payload = { reason: reason };
+    if (bankDetails) {
+      payload.bankDetails = bankDetails;
+    }
+    return ApiClient.post(`api/${t}/bookings/${id}/request-reject`, payload);
   },
   releaseBookingHook(id, tenantId, hookId) {
     const t = tenantId || store.getters["tenants/currentTenantId"];
@@ -84,6 +127,13 @@ export default {
   async generateReceipt(id) {
     const response = await ApiClient.post(
       `api/${store.getters["tenants/currentTenantId"]}/bookings/${id}/receipt`,
+      {}
+    );
+    return response.data;
+  },
+  async generateInvoice(id, sendEmail = false) {
+    const response = await ApiClient.post(
+      `api/${store.getters["tenants/currentTenantId"]}/bookings/${id}/invoice?sendEmail=${sendEmail}`,
       {}
     );
     return response.data;
@@ -104,16 +154,22 @@ export default {
       }
     );
   },
+  getCancellationReceipt(id, cancellationReceiptId) {
+    return ApiClient.get(
+      `api/${store.getters["tenants/currentTenantId"]}/bookings/${id}/cancellation-receipt/${cancellationReceiptId}`,
+      {
+        responseType: "blob",
+      }
+    );
+  },
   async downloadBookingIcal(id) {
     return await ApiClient.get(
-      `api/${store.getters["tenants/currentTenantId"]}/ical/bookings/${id}`,
+      `api/${store.getters["tenants/currentTenantId"]}/ical/bookings/${id}`
     );
   },
   downloadGroupBookingIcal(ids, tenant) {
     const t = tenant || store.getters["tenants/currentTenantId"];
-    return ApiClient.get(
-      `api/${t}/ical/bookings?ids=${ids.join(",")}`
-    );
+    return ApiClient.get(`api/${t}/ical/bookings?ids=${ids.join(",")}`);
   },
   checkPublicBookingStatus(id, lastname, tenantId) {
     return ApiClient.get(`api/${tenantId}/bookings/${id}/status/public`, {
